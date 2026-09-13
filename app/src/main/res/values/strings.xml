@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI 대시보드</string>
+    <string name="schedule_widget_title">스케줄</string>
+    <string name="favorites_widget_title">즐겨찾기</string>
+    <string name="schedule_widget_desc">대시보드 스케줄을 홈 화면에서 봅니다</string>
+    <string name="favorites_widget_desc">즐겨찾기한 메뉴를 홈 화면에서 바로 엽니다</string>
+    <string name="schedule_empty">표시할 일정이 없습니다</string>
+    <string name="favorites_empty">즐겨찾기한 메뉴가 없습니다</string>
+    <string name="need_login">앱을 열어 로그인한 뒤 새로고침하세요</string>
+    <string name="refresh">새로고침</string>
+</resources>
