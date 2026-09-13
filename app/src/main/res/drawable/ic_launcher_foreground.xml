@@ -1,18 +1,21 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M32,28 h14 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-14 a4,4 0 0 1 -4,-4 v-14 a4,4 0 0 1 4,-4 z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M62,28 h14 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-14 a4,4 0 0 1 -4,-4 v-14 a4,4 0 0 1 4,-4 z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M32,58 h14 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-14 a4,4 0 0 1 -4,-4 v-14 a4,4 0 0 1 4,-4 z" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M62,58 h14 a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-14 a4,4 0 0 1 -4,-4 v-14 a4,4 0 0 1 4,-4 z" />
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
+        <group
+            android:translateX="54.24"
+            android:translateY="405.37"
+            android:scaleX="0.20833"
+            android:scaleY="-0.20833">
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M1425 0H1073L971 319H461L360 0H10L532 1434H915ZM897 567 743 1049Q726 1103 719 1178H711Q706 1115 686 1053L530 567ZM1927 0H1604V1434H1927Z" />
+        </group>
+    </group>
 </vector>
