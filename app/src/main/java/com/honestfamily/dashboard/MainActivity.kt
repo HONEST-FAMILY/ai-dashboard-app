@@ -22,11 +22,14 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
+    private lateinit var swipe: SwipeRefreshLayout
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
     private val fileChooser: ActivityResultLauncher<Intent> =
@@ -42,6 +45,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         webView = findViewById(R.id.webview)
         progress = findViewById(R.id.progress)
+        swipe = findViewById(R.id.swipe)
+
+        swipe.setColorSchemeColors(ContextCompat.getColor(this, R.color.widget_accent))
+        swipe.setOnRefreshListener { webView.reload() }
+        webView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            swipe.isEnabled = scrollY == 0
+        }
 
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
@@ -78,6 +88,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 progress.visibility = View.GONE
+                swipe.isRefreshing = false
                 CookieManager.getInstance().flush()
                 AppConfig.syncTokenFromCookies(this@MainActivity)
                 Widgets.refreshAll(this@MainActivity)
