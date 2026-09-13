@@ -12,6 +12,5 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:initialLayout="@layout/widget_schedule"
-    android:previewLayout="@layout/widget_schedule"
     android:previewImage="@mipmap/ic_launcher"
     android:description="@string/schedule_widget_desc" />

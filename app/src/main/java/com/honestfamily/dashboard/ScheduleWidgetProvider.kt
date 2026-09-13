@@ -5,12 +5,15 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
 import android.os.Bundle
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
-import android.text.style.StrikethroughSpan
+import android.text.TextPaint
+import android.text.TextUtils
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
@@ -94,15 +97,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_title, "${year}년 ${mon0 + 1}월")
 
         val sundayFirst = weekStartsOnSunday(context, token)
-        val labels = if (sundayFirst)
-            arrayOf("일", "월", "화", "수", "목", "금", "토")
-        else
-            arrayOf("월", "화", "수", "목", "금", "토", "일")
-        for (i in 0 until 7) {
-            val wid = idOf(context, "wd_$i")
-            views.setTextViewText(wid, labels[i])
-            views.setTextColor(wid, weekdayColor(context, labels[i]))
-        }
 
         val gridStart = month.clone() as Calendar
         val dowSun0 = gridStart.get(Calendar.DAY_OF_WEEK) - 1
@@ -115,78 +109,161 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val to = fmt.format(toCal.time)
 
         val byDate: Map<String, List<Ev>>? = if (token == null) null else fetchSchedules(token, from, to)
-
-        val textCol = ContextCompat.getColor(context, R.color.widget_text)
-        val mutedCol = ContextCompat.getColor(context, R.color.widget_text_muted)
-        val outCol = ContextCompat.getColor(context, R.color.widget_out)
-        val roseCol = ContextCompat.getColor(context, R.color.widget_rose)
-
-        val cell = gridStart.clone() as Calendar
-        for (i in 0 until 42) {
-            val r = i / 7
-            val c = i % 7
-            val ds = fmt.format(cell.time)
-            val inMonth = cell.get(Calendar.MONTH) == mon0 && cell.get(Calendar.YEAR) == year
-            val isToday = ds == todayStr
-            val isSunday = cell.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
-
-            val dateId = idOf(context, "date_${r}_$c")
-            views.setTextViewText(dateId, cell.get(Calendar.DAY_OF_MONTH).toString())
-            if (isToday) {
-                views.setInt(dateId, "setBackgroundResource", R.drawable.today_circle)
-                views.setTextColor(dateId, ContextCompat.getColor(context, R.color.widget_today_text))
-            } else {
-                views.setInt(dateId, "setBackgroundColor", Color.TRANSPARENT)
-                views.setTextColor(dateId, if (!inMonth) outCol else if (isSunday) roseCol else textCol)
-            }
-
-            val dayEvents = byDate?.get(ds) ?: emptyList()
-            renderCellEvents(context, views, r, c, dayEvents, textCol, mutedCol)
-            cell.add(Calendar.DAY_OF_YEAR, 1)
-        }
-
         val needLogin = token == null || byDate == null
-        views.setViewVisibility(R.id.widget_empty, if (needLogin) View.VISIBLE else View.GONE)
-        views.setTextViewText(R.id.widget_empty, context.getString(R.string.need_login))
+
+        if (needLogin) {
+            views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_canvas, View.GONE)
+            views.setTextViewText(R.id.widget_empty, context.getString(R.string.need_login))
+        } else {
+            val bitmap = drawCalendar(context, mgr, id, year, mon0, sundayFirst, todayStr, gridStart, byDate, fmt)
+            views.setImageViewBitmap(R.id.widget_canvas, bitmap)
+            views.setViewVisibility(R.id.widget_canvas, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_empty, View.GONE)
+        }
 
         bindClicks(context, views, id)
         mgr.updateAppWidget(id, views)
     }
 
-    private fun renderCellEvents(
+    private fun drawCalendar(
         context: Context,
-        views: RemoteViews,
-        r: Int,
-        c: Int,
-        events: List<Ev>,
-        textCol: Int,
-        mutedCol: Int
-    ) {
-        val n = events.size
-        for (k in 0 until 3) {
-            val evId = idOf(context, "ev_${r}_${c}_$k")
-            val overflow = n > 3 && k == 2
-            if (k >= n && !overflow) {
-                views.setViewVisibility(evId, View.GONE)
-                continue
-            }
-            views.setViewVisibility(evId, View.VISIBLE)
-            if (overflow) {
-                views.setTextViewText(evId, "+${n - 2}개")
-                views.setTextColor(evId, mutedCol)
-                continue
-            }
-            val e = events[k]
-            val bar = if (e.done) mutedCol else barColor(context, e.color)
-            val sb = SpannableStringBuilder("▍ ").append(e.title)
-            sb.setSpan(ForegroundColorSpan(bar), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            if (e.done) {
-                sb.setSpan(StrikethroughSpan(), 2, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                sb.setSpan(ForegroundColorSpan(mutedCol), 2, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
-            views.setTextViewText(evId, sb)
-            views.setTextColor(evId, textCol)
+        mgr: AppWidgetManager,
+        id: Int,
+        year: Int,
+        mon0: Int,
+        sundayFirst: Boolean,
+        todayStr: String,
+        gridStart: Calendar,
+        byDate: Map<String, List<Ev>>,
+        fmt: SimpleDateFormat
+    ): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val opts = mgr.getAppWidgetOptions(id)
+        val minWidthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val maxHeightDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+        val wDp = if (minWidthDp > 0) minWidthDp else 250
+        val hDp = if (maxHeightDp > 0) maxHeightDp else 240
+        val w = ((wDp - 24) * density).toInt().coerceIn(240, 1400)
+        val h = ((hDp - 66) * density).toInt().coerceIn(180, 1600)
+
+        val textCol = ContextCompat.getColor(context, R.color.widget_text)
+        val mutedCol = ContextCompat.getColor(context, R.color.widget_text_muted)
+        val outCol = ContextCompat.getColor(context, R.color.widget_out)
+        val roseCol = ContextCompat.getColor(context, R.color.widget_rose)
+        val accentCol = ContextCompat.getColor(context, R.color.widget_accent)
+        val todayTextCol = ContextCompat.getColor(context, R.color.widget_today_text)
+        val borderCol = ContextCompat.getColor(context, R.color.widget_border)
+
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val pad = density * 3f
+        val colW = w / 7f
+        val weekdayH = (h * 0.11f).coerceIn(density * 15f, density * 26f)
+        val rowH = (h - weekdayH) / 6f
+
+        val dateSize = (rowH * 0.26f).coerceIn(density * 10f, density * 15f)
+        val evSize = (rowH * 0.19f).coerceIn(density * 8f, density * 11.5f)
+        val evLineH = evSize * 1.42f
+        val dateR = dateSize * 0.82f
+        val barW = density * 3f
+
+        val labelPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = (weekdayH * 0.5f).coerceIn(density * 9f, density * 12f)
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
         }
+        val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textSize = dateSize
+            textAlign = Paint.Align.CENTER
+        }
+        val evPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = evSize }
+        val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = borderCol
+            strokeWidth = Math.max(1f, density * 0.5f)
+        }
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        val labels = if (sundayFirst)
+            arrayOf("일", "월", "화", "수", "목", "금", "토")
+        else
+            arrayOf("월", "화", "수", "목", "금", "토", "일")
+        run {
+            val fm = labelPaint.fontMetrics
+            val baseline = weekdayH / 2f - (fm.ascent + fm.descent) / 2f
+            for (i in 0 until 7) {
+                labelPaint.color = when (labels[i]) {
+                    "일" -> roseCol
+                    "토" -> accentCol
+                    else -> mutedCol
+                }
+                canvas.drawText(labels[i], colW * i + colW / 2f, baseline, labelPaint)
+            }
+        }
+        canvas.drawLine(0f, weekdayH, w.toFloat(), weekdayH, linePaint)
+
+        val dateFm = datePaint.fontMetrics
+        val evFm = evPaint.fontMetrics
+        val dateAreaH = dateR * 2f + pad
+        val maxLines = (((rowH - dateAreaH - pad) / evLineH).toInt()).coerceIn(0, 3)
+
+        val cell = gridStart.clone() as Calendar
+        for (i in 0 until 42) {
+            val r = i / 7
+            val c = i % 7
+            val x0 = colW * c
+            val y0 = weekdayH + rowH * r
+            val ds = fmt.format(cell.time)
+            val inMonth = cell.get(Calendar.MONTH) == mon0 && cell.get(Calendar.YEAR) == year
+            val isToday = ds == todayStr
+            val isSunday = cell.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+
+            if (r > 0) canvas.drawLine(x0, y0, x0 + colW, y0, linePaint)
+
+            val cx = x0 + pad + dateR
+            val cy = y0 + pad + dateR
+            val dateStr = cell.get(Calendar.DAY_OF_MONTH).toString()
+            if (isToday) {
+                fillPaint.color = accentCol
+                canvas.drawCircle(cx, cy, dateR, fillPaint)
+                datePaint.color = todayTextCol
+            } else {
+                datePaint.color = if (!inMonth) outCol else if (isSunday) roseCol else textCol
+            }
+            canvas.drawText(dateStr, cx, cy - (dateFm.ascent + dateFm.descent) / 2f, datePaint)
+
+            val events = byDate[ds] ?: emptyList()
+            val n = events.size
+            val evsTop = y0 + dateAreaH
+            val evAvail = colW - pad * 2f - barW - pad
+            for (k in 0 until maxLines) {
+                val lineTop = evsTop + evLineH * k
+                val baseline = lineTop + evLineH / 2f - (evFm.ascent + evFm.descent) / 2f
+                val overflow = n > maxLines && k == maxLines - 1
+                if (overflow) {
+                    evPaint.isStrikeThruText = false
+                    evPaint.color = mutedCol
+                    canvas.drawText("+${n - (maxLines - 1)}개", x0 + pad, baseline, evPaint)
+                    continue
+                }
+                if (k >= n) continue
+                val e = events[k]
+                val bar = if (e.done) mutedCol else barColor(context, e.color)
+                fillPaint.color = bar
+                val barTop = lineTop + evLineH * 0.18f
+                canvas.drawRoundRect(
+                    RectF(x0 + pad, barTop, x0 + pad + barW, barTop + evSize),
+                    barW / 2f, barW / 2f, fillPaint
+                )
+                evPaint.isStrikeThruText = e.done
+                evPaint.color = if (e.done) mutedCol else textCol
+                val clipped = TextUtils.ellipsize(e.title, evPaint, evAvail, TextUtils.TruncateAt.END)
+                canvas.drawText(clipped, 0, clipped.length, x0 + pad + barW + pad, baseline, evPaint)
+            }
+            cell.add(Calendar.DAY_OF_YEAR, 1)
+        }
+        return bitmap
     }
 
     private fun bindClicks(context: Context, views: RemoteViews, id: Int) {
@@ -201,7 +278,8 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         }
         val openPi = PendingIntent.getActivity(context, id * 10 + 5, open, Widgets.piFlags(false))
         views.setOnClickPendingIntent(R.id.widget_title, openPi)
-        views.setOnClickPendingIntent(R.id.grid, openPi)
+        views.setOnClickPendingIntent(R.id.widget_canvas, openPi)
+        views.setOnClickPendingIntent(R.id.widget_empty, openPi)
     }
 
     private fun broadcast(context: Context, id: Int, action: String, code: Int): PendingIntent {
@@ -254,12 +332,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         return prefs.getString(KEY_WEEK_START, "sunday") == "sunday"
     }
 
-    private fun weekdayColor(context: Context, label: String): Int = when (label) {
-        "일" -> ContextCompat.getColor(context, R.color.widget_rose)
-        "토" -> ContextCompat.getColor(context, R.color.widget_accent)
-        else -> ContextCompat.getColor(context, R.color.widget_text_muted)
-    }
-
     private fun barColor(context: Context, slot: Int): Int = when (slot) {
         2 -> Color.parseColor("#2563EB")
         3 -> Color.parseColor("#DC2626")
@@ -270,9 +342,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         8 -> Color.parseColor("#7C3AED")
         else -> ContextCompat.getColor(context, R.color.widget_text)
     }
-
-    private fun idOf(context: Context, name: String): Int =
-        context.resources.getIdentifier(name, "id", context.packageName)
 
     private fun keyOffset(id: Int) = "off_$id"
 
