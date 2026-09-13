@@ -109,9 +109,8 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val to = fmt.format(toCal.time)
 
         val byDate: Map<String, List<Ev>>? = if (token == null) null else fetchSchedules(token, from, to)
-        val needLogin = token == null || byDate == null
 
-        if (needLogin) {
+        if (byDate == null) {
             views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
             views.setViewVisibility(R.id.widget_canvas, View.GONE)
             views.setTextViewText(R.id.widget_empty, context.getString(R.string.need_login))
