@@ -2,7 +2,12 @@
 <resources>
     <color name="window_bg">#FFFFFF</color>
     <color name="widget_bg">#FFFFFF</color>
-    <color name="widget_text">#111827</color>
-    <color name="widget_text_muted">#6B7280</color>
+    <color name="widget_text">#0F150E</color>
+    <color name="widget_text_muted">#8B938A</color>
+    <color name="widget_accent">#02955A</color>
+    <color name="widget_rose">#B3365C</color>
+    <color name="widget_border">#EAECE6</color>
+    <color name="widget_today_text">#FFFFFF</color>
+    <color name="widget_out">#C2C7BD</color>
     <color name="ic_launcher_bg">#111827</color>
 </resources>

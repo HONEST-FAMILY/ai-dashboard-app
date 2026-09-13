@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="window_bg">#0B0B0F</color>
-    <color name="widget_bg">#17181C</color>
-    <color name="widget_text">#F3F4F6</color>
-    <color name="widget_text_muted">#9CA3AF</color>
+    <color name="widget_bg">#161C17</color>
+    <color name="widget_text">#F2F5F1</color>
+    <color name="widget_text_muted">#97A299</color>
+    <color name="widget_accent">#3DDB8B</color>
+    <color name="widget_rose">#F38BAB</color>
+    <color name="widget_border">#22271F</color>
+    <color name="widget_today_text">#0D130F</color>
+    <color name="widget_out">#5A6157</color>
     <color name="ic_launcher_bg">#111827</color>
 </resources>
