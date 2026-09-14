@@ -103,6 +103,24 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val back = if (sundayFirst) dowSun0 else (dowSun0 + 6) % 7
         gridStart.add(Calendar.DAY_OF_YEAR, -back)
 
+        // 요일 헤더는 이제 레이아웃(TextView)로 그린다 — 격자 셀을 눌러 그 날 일정을 열 수 있게 하려고 캔버스는 격자만 그린다.
+        val weekdayLabels = if (sundayFirst)
+            arrayOf("일", "월", "화", "수", "목", "금", "토")
+        else
+            arrayOf("월", "화", "수", "목", "금", "토", "일")
+        for (i in 0 until 7) {
+            val wdId = context.resources.getIdentifier("wd_$i", "id", context.packageName)
+            if (wdId != 0) {
+                views.setTextViewText(wdId, weekdayLabels[i])
+                val col = when (weekdayLabels[i]) {
+                    "일" -> R.color.widget_rose
+                    "토" -> R.color.widget_accent
+                    else -> R.color.widget_text_muted
+                }
+                views.setTextColor(wdId, ContextCompat.getColor(context, col))
+            }
+        }
+
         val from = fmt.format(gridStart.time)
         val toCal = gridStart.clone() as Calendar
         toCal.add(Calendar.DAY_OF_YEAR, 41)
@@ -121,7 +139,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(R.id.widget_empty, View.GONE)
         }
 
-        bindClicks(context, views, id)
+        bindClicks(context, views, id, gridStart, fmt)
         mgr.updateAppWidget(id, views)
     }
 
@@ -159,8 +177,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
 
         val pad = density * 3f
         val colW = w / 7f
-        val weekdayH = (h * 0.11f).coerceIn(density * 15f, density * 26f)
-        val rowH = (h - weekdayH) / 6f
+        val rowH = h / 6f
 
         val dateSize = (rowH * 0.26f).coerceIn(density * 10f, density * 15f)
         val evSize = (rowH * 0.19f).coerceIn(density * 8f, density * 11.5f)
@@ -168,11 +185,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val dateR = dateSize * 0.82f
         val barW = density * 3f
 
-        val labelPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = (weekdayH * 0.5f).coerceIn(density * 9f, density * 12f)
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.DEFAULT_BOLD
-        }
         val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             textSize = dateSize
             textAlign = Paint.Align.CENTER
@@ -184,24 +196,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         }
         val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-        val labels = if (sundayFirst)
-            arrayOf("일", "월", "화", "수", "목", "금", "토")
-        else
-            arrayOf("월", "화", "수", "목", "금", "토", "일")
-        run {
-            val fm = labelPaint.fontMetrics
-            val baseline = weekdayH / 2f - (fm.ascent + fm.descent) / 2f
-            for (i in 0 until 7) {
-                labelPaint.color = when (labels[i]) {
-                    "일" -> roseCol
-                    "토" -> accentCol
-                    else -> mutedCol
-                }
-                canvas.drawText(labels[i], colW * i + colW / 2f, baseline, labelPaint)
-            }
-        }
-        canvas.drawLine(0f, weekdayH, w.toFloat(), weekdayH, linePaint)
-
         val dateFm = datePaint.fontMetrics
         val evFm = evPaint.fontMetrics
         val dateAreaH = dateR * 2f + pad
@@ -212,7 +206,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             val r = i / 7
             val c = i % 7
             val x0 = colW * c
-            val y0 = weekdayH + rowH * r
+            val y0 = rowH * r
             val ds = fmt.format(cell.time)
             val inMonth = cell.get(Calendar.MONTH) == mon0 && cell.get(Calendar.YEAR) == year
             val isToday = ds == todayStr
@@ -265,21 +259,40 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         return bitmap
     }
 
-    private fun bindClicks(context: Context, views: RemoteViews, id: Int) {
+    private fun bindClicks(context: Context, views: RemoteViews, id: Int, gridStart: Calendar, fmt: SimpleDateFormat) {
         views.setOnClickPendingIntent(R.id.nav_prev, broadcast(context, id, ACTION_PREV, 1))
         views.setOnClickPendingIntent(R.id.nav_next, broadcast(context, id, ACTION_NEXT, 2))
         views.setOnClickPendingIntent(R.id.nav_today, broadcast(context, id, ACTION_TODAY, 3))
         views.setOnClickPendingIntent(R.id.widget_refresh, broadcast(context, id, ACTION_REFRESH, 4))
 
-        val open = Intent(context, MainActivity::class.java).apply {
-            putExtra(AppConfig.EXTRA_OPEN_URL, AppConfig.BASE_WEB + "/schedule")
+        val openPi = PendingIntent.getActivity(context, id * 10 + 5, openScheduleIntent(context, "/schedule"), Widgets.piFlags(false))
+        views.setOnClickPendingIntent(R.id.widget_title, openPi)
+        views.setOnClickPendingIntent(R.id.widget_empty, openPi)
+
+        // 우측 상단 + 버튼 — 새 일정 바로 등록
+        val addPi = PendingIntent.getActivity(context, id * 1000 + 99, openScheduleIntent(context, "/schedule?new=1"), Widgets.piFlags(false))
+        views.setOnClickPendingIntent(R.id.nav_add, addPi)
+
+        // 날짜 셀을 누르면 그 날 일정 화면을 연다(구글 캘린더처럼).
+        val cell = gridStart.clone() as Calendar
+        for (i in 0 until 42) {
+            val ds = fmt.format(cell.time)
+            val cellId = context.resources.getIdentifier("cell_$i", "id", context.packageName)
+            if (cellId != 0) {
+                val pi = PendingIntent.getActivity(context, id * 1000 + 100 + i, openScheduleIntent(context, "/schedule?date=$ds"), Widgets.piFlags(false))
+                views.setOnClickPendingIntent(cellId, pi)
+            }
+            cell.add(Calendar.DAY_OF_YEAR, 1)
+        }
+    }
+
+    // 같은 액티비티라도 날짜마다 다른 화면으로 열리도록 경로를 액션에 실어 PendingIntent가 구분되게 한다.
+    private fun openScheduleIntent(context: Context, path: String): Intent =
+        Intent(context, MainActivity::class.java).apply {
+            action = "com.honestfamily.dashboard.OPEN_" + path.hashCode()
+            putExtra(AppConfig.EXTRA_OPEN_URL, AppConfig.BASE_WEB + path)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        val openPi = PendingIntent.getActivity(context, id * 10 + 5, open, Widgets.piFlags(false))
-        views.setOnClickPendingIntent(R.id.widget_title, openPi)
-        views.setOnClickPendingIntent(R.id.widget_canvas, openPi)
-        views.setOnClickPendingIntent(R.id.widget_empty, openPi)
-    }
 
     private fun broadcast(context: Context, id: Int, action: String, code: Int): PendingIntent {
         val intent = Intent(context, ScheduleWidgetProvider::class.java)

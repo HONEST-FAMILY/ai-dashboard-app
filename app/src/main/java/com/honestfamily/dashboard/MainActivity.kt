@@ -1,11 +1,14 @@
 package com.honestfamily.dashboard
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.view.View
@@ -38,6 +41,9 @@ class MainActivity : AppCompatActivity() {
             filePathCallback = null
             cb?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data))
         }
+
+    private val notifPermLauncher: ActivityResultLauncher<String> =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +98,7 @@ class MainActivity : AppCompatActivity() {
                 CookieManager.getInstance().flush()
                 AppConfig.syncTokenFromCookies(this@MainActivity)
                 Widgets.refreshAll(this@MainActivity)
+                ReminderScheduler.sync(this@MainActivity)
             }
         }
 
@@ -147,6 +154,13 @@ class MainActivity : AppCompatActivity() {
             webView.restoreState(savedInstanceState)
         } else {
             webView.loadUrl(startUrl(intent))
+        }
+
+        // 폰 알림을 보내려면 사용자 허가가 필요하다(안드로이드 13+).
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 

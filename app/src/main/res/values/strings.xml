@@ -9,6 +9,7 @@
     <string name="favorites_empty">즐겨찾기한 메뉴가 없습니다</string>
     <string name="need_login">앱을 열어 로그인한 뒤 새로고침하세요</string>
     <string name="refresh">새로고침</string>
+    <string name="add_schedule">일정 추가</string>
     <string name="prev_month">지난달</string>
     <string name="next_month">다음달</string>
     <string name="today">오늘</string>
