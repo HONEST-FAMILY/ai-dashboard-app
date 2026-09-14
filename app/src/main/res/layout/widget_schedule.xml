@@ -7,6 +7,7 @@
     android:padding="12dp">
 
     <LinearLayout
+        android:id="@+id/month_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -81,6 +82,59 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/day_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/day_back"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:padding="3dp"
+            android:src="@drawable/ic_chevron_left"
+            android:contentDescription="@string/back_to_calendar"
+            android:tint="@color/widget_text" />
+
+        <TextView
+            android:id="@+id/day_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:paddingStart="2dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/widget_text"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/day_add"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_marginStart="4dp"
+            android:padding="3dp"
+            android:src="@drawable/ic_add"
+            android:contentDescription="@string/add_schedule"
+            android:tint="@color/widget_accent" />
+
+        <ImageView
+            android:id="@+id/day_refresh"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="2dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_refresh"
+            android:contentDescription="@string/refresh"
+            android:tint="@color/widget_text_muted" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/weekday_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -151,6 +205,7 @@
     </LinearLayout>
 
     <FrameLayout
+        android:id="@+id/month_body"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
@@ -422,6 +477,30 @@
             android:background="@color/widget_bg"
             android:visibility="gone"
             android:text="@string/need_login"
+            android:textColor="@color/widget_text_muted"
+            android:textSize="13sp" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/day_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <ListView
+            android:id="@+id/day_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@color/widget_border"
+            android:dividerHeight="0.5dp" />
+
+        <TextView
+            android:id="@+id/day_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/day_empty"
             android:textColor="@color/widget_text_muted"
             android:textSize="13sp" />
     </FrameLayout>

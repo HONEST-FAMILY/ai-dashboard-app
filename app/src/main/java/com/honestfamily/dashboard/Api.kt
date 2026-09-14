@@ -22,4 +22,25 @@ object Api {
             conn?.disconnect()
         }
     }
+
+    fun put(path: String, token: String, json: String): Boolean {
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = (URL(AppConfig.BASE_API + path).openConnection() as HttpURLConnection).apply {
+                requestMethod = "PUT"
+                doOutput = true
+                connectTimeout = 10000
+                readTimeout = 10000
+                setRequestProperty("Authorization", "Bearer $token")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Content-Type", "application/json")
+            }
+            conn.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+            conn.responseCode in 200..299
+        } catch (e: Exception) {
+            false
+        } finally {
+            conn?.disconnect()
+        }
+    }
 }

@@ -10,7 +10,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
-import android.graphics.Typeface
+import android.net.Uri
 import android.os.Bundle
 import android.text.TextPaint
 import android.text.TextUtils
@@ -40,22 +40,41 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-        for (id in appWidgetIds) editor.remove(keyOffset(id))
+        for (id in appWidgetIds) {
+            editor.remove(keyOffset(id))
+            editor.remove(keyMode(id))
+            editor.remove(keySelDate(id))
+        }
         editor.apply()
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         when (intent.action) {
             ACTION_PREV, ACTION_NEXT, ACTION_TODAY, ACTION_REFRESH -> {
                 val id = intent.getIntExtra(EXTRA_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
                 if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                    val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     val cur = prefs.getInt(keyOffset(id), 0)
                     when (intent.action) {
                         ACTION_PREV -> prefs.edit().putInt(keyOffset(id), cur - 1).apply()
                         ACTION_NEXT -> prefs.edit().putInt(keyOffset(id), cur + 1).apply()
                         ACTION_TODAY -> prefs.edit().putInt(keyOffset(id), 0).apply()
                     }
+                    renderAsync(context, intArrayOf(id))
+                }
+            }
+            ACTION_OPEN_DAY -> {
+                val id = intent.getIntExtra(EXTRA_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                val date = intent.getStringExtra(EXTRA_DATE)
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID && date != null) {
+                    prefs.edit().putString(keyMode(id), MODE_DAY).putString(keySelDate(id), date).apply()
+                    renderAsync(context, intArrayOf(id))
+                }
+            }
+            ACTION_BACK_MONTH -> {
+                val id = intent.getIntExtra(EXTRA_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    prefs.edit().putString(keyMode(id), MODE_MONTH).apply()
                     renderAsync(context, intArrayOf(id))
                 }
             }
@@ -82,8 +101,34 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     private fun renderOne(context: Context, mgr: AppWidgetManager, id: Int) {
         val views = RemoteViews(context.packageName, R.layout.widget_schedule)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val token = AppConfig.widgetToken(context)
+        val mode = prefs.getString(keyMode(id), MODE_MONTH)
+
+        setupDayList(context, views, id)
+        bindHeaderClicks(context, views, id)
+
+        val dayMode = token != null && mode == MODE_DAY
+        if (dayMode) {
+            renderDay(context, views, id, prefs)
+            showDay(views)
+        } else {
+            renderMonth(context, mgr, id, views, token, prefs)
+            showMonth(views)
+        }
+
+        mgr.updateAppWidget(id, views)
+        if (dayMode) mgr.notifyAppWidgetViewDataChanged(id, R.id.day_list)
+    }
+
+    private fun renderMonth(
+        context: Context,
+        mgr: AppWidgetManager,
+        id: Int,
+        views: RemoteViews,
+        token: String?,
+        prefs: android.content.SharedPreferences
+    ) {
         val offset = prefs.getInt(keyOffset(id), 0)
-        val token = AppConfig.savedToken(context)
 
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
         val todayStr = fmt.format(Calendar.getInstance().time)
@@ -103,7 +148,6 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val back = if (sundayFirst) dowSun0 else (dowSun0 + 6) % 7
         gridStart.add(Calendar.DAY_OF_YEAR, -back)
 
-        // 요일 헤더는 이제 레이아웃(TextView)로 그린다 — 격자 셀을 눌러 그 날 일정을 열 수 있게 하려고 캔버스는 격자만 그린다.
         val weekdayLabels = if (sundayFirst)
             arrayOf("일", "월", "화", "수", "목", "금", "토")
         else
@@ -139,8 +183,77 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             views.setViewVisibility(R.id.widget_empty, View.GONE)
         }
 
-        bindClicks(context, views, id, gridStart, fmt)
-        mgr.updateAppWidget(id, views)
+        bindCellClicks(context, views, id, gridStart, fmt)
+    }
+
+    private fun renderDay(context: Context, views: RemoteViews, id: Int, prefs: android.content.SharedPreferences) {
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
+        val todayStr = fmt.format(Calendar.getInstance().time)
+        val date = prefs.getString(keySelDate(id), todayStr) ?: todayStr
+
+        val label = try {
+            val parsed = fmt.parse(date)
+            SimpleDateFormat("M월 d일 (E)", Locale.KOREA).format(parsed!!)
+        } catch (e: Exception) {
+            date
+        }
+        views.setTextViewText(R.id.day_title, label)
+
+        val addPi = PendingIntent.getActivity(
+            context, id * 1000 + 200,
+            openScheduleIntent(context, "/schedule?date=$date&new=1"),
+            Widgets.piFlags(false)
+        )
+        views.setOnClickPendingIntent(R.id.day_add, addPi)
+        views.setOnClickPendingIntent(R.id.day_empty, addPi)
+    }
+
+    private fun setupDayList(context: Context, views: RemoteViews, id: Int) {
+        val svc = Intent(context, ScheduleDayWidgetService::class.java).apply {
+            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+            data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+        }
+        views.setRemoteAdapter(R.id.day_list, svc)
+        views.setEmptyView(R.id.day_list, R.id.day_empty)
+
+        val template = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        views.setPendingIntentTemplate(
+            R.id.day_list,
+            PendingIntent.getActivity(context, id * 10 + 6, template, Widgets.piFlags(true))
+        )
+    }
+
+    private fun bindHeaderClicks(context: Context, views: RemoteViews, id: Int) {
+        views.setOnClickPendingIntent(R.id.nav_prev, broadcast(context, id, ACTION_PREV, 1))
+        views.setOnClickPendingIntent(R.id.nav_next, broadcast(context, id, ACTION_NEXT, 2))
+        views.setOnClickPendingIntent(R.id.nav_today, broadcast(context, id, ACTION_TODAY, 3))
+        views.setOnClickPendingIntent(R.id.widget_refresh, broadcast(context, id, ACTION_REFRESH, 4))
+        views.setOnClickPendingIntent(R.id.day_refresh, broadcast(context, id, ACTION_REFRESH, 4))
+        views.setOnClickPendingIntent(R.id.day_back, broadcast(context, id, ACTION_BACK_MONTH, 7))
+
+        val openPi = PendingIntent.getActivity(context, id * 10 + 5, openScheduleIntent(context, "/schedule"), Widgets.piFlags(false))
+        views.setOnClickPendingIntent(R.id.widget_title, openPi)
+
+        val addPi = PendingIntent.getActivity(context, id * 1000 + 99, openScheduleIntent(context, "/schedule?new=1"), Widgets.piFlags(false))
+        views.setOnClickPendingIntent(R.id.nav_add, addPi)
+    }
+
+    private fun showMonth(views: RemoteViews) {
+        views.setViewVisibility(R.id.month_header, View.VISIBLE)
+        views.setViewVisibility(R.id.weekday_row, View.VISIBLE)
+        views.setViewVisibility(R.id.month_body, View.VISIBLE)
+        views.setViewVisibility(R.id.day_header, View.GONE)
+        views.setViewVisibility(R.id.day_body, View.GONE)
+    }
+
+    private fun showDay(views: RemoteViews) {
+        views.setViewVisibility(R.id.month_header, View.GONE)
+        views.setViewVisibility(R.id.weekday_row, View.GONE)
+        views.setViewVisibility(R.id.month_body, View.GONE)
+        views.setViewVisibility(R.id.day_header, View.VISIBLE)
+        views.setViewVisibility(R.id.day_body, View.VISIBLE)
     }
 
     private fun drawCalendar(
@@ -259,34 +372,18 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         return bitmap
     }
 
-    private fun bindClicks(context: Context, views: RemoteViews, id: Int, gridStart: Calendar, fmt: SimpleDateFormat) {
-        views.setOnClickPendingIntent(R.id.nav_prev, broadcast(context, id, ACTION_PREV, 1))
-        views.setOnClickPendingIntent(R.id.nav_next, broadcast(context, id, ACTION_NEXT, 2))
-        views.setOnClickPendingIntent(R.id.nav_today, broadcast(context, id, ACTION_TODAY, 3))
-        views.setOnClickPendingIntent(R.id.widget_refresh, broadcast(context, id, ACTION_REFRESH, 4))
-
-        val openPi = PendingIntent.getActivity(context, id * 10 + 5, openScheduleIntent(context, "/schedule"), Widgets.piFlags(false))
-        views.setOnClickPendingIntent(R.id.widget_title, openPi)
-        views.setOnClickPendingIntent(R.id.widget_empty, openPi)
-
-        // 우측 상단 + 버튼 — 새 일정 바로 등록
-        val addPi = PendingIntent.getActivity(context, id * 1000 + 99, openScheduleIntent(context, "/schedule?new=1"), Widgets.piFlags(false))
-        views.setOnClickPendingIntent(R.id.nav_add, addPi)
-
-        // 날짜 셀을 누르면 그 날 일정 화면을 연다(구글 캘린더처럼).
+    private fun bindCellClicks(context: Context, views: RemoteViews, id: Int, gridStart: Calendar, fmt: SimpleDateFormat) {
         val cell = gridStart.clone() as Calendar
         for (i in 0 until 42) {
             val ds = fmt.format(cell.time)
             val cellId = context.resources.getIdentifier("cell_$i", "id", context.packageName)
             if (cellId != 0) {
-                val pi = PendingIntent.getActivity(context, id * 1000 + 100 + i, openScheduleIntent(context, "/schedule?date=$ds"), Widgets.piFlags(false))
-                views.setOnClickPendingIntent(cellId, pi)
+                views.setOnClickPendingIntent(cellId, broadcastOpenDay(context, id, ds, i))
             }
             cell.add(Calendar.DAY_OF_YEAR, 1)
         }
     }
 
-    // 같은 액티비티라도 날짜마다 다른 화면으로 열리도록 경로를 액션에 실어 PendingIntent가 구분되게 한다.
     private fun openScheduleIntent(context: Context, path: String): Intent =
         Intent(context, MainActivity::class.java).apply {
             action = "com.honestfamily.dashboard.OPEN_" + path.hashCode()
@@ -299,6 +396,14 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             .setAction(action)
             .putExtra(EXTRA_ID, id)
         return PendingIntent.getBroadcast(context, id * 10 + code, intent, Widgets.piFlags(false))
+    }
+
+    private fun broadcastOpenDay(context: Context, id: Int, date: String, index: Int): PendingIntent {
+        val intent = Intent(context, ScheduleWidgetProvider::class.java)
+            .setAction(ACTION_OPEN_DAY)
+            .putExtra(EXTRA_ID, id)
+            .putExtra(EXTRA_DATE, date)
+        return PendingIntent.getBroadcast(context, id * 1000 + 100 + index, intent, Widgets.piFlags(false))
     }
 
     private fun fetchSchedules(token: String, from: String, to: String): Map<String, List<Ev>>? {
@@ -356,6 +461,8 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     }
 
     private fun keyOffset(id: Int) = "off_$id"
+    private fun keyMode(id: Int) = "mode_$id"
+    private fun keySelDate(id: Int) = "seldate_$id"
 
     private data class Ev(val title: String, val color: Int, val done: Boolean)
 
@@ -364,10 +471,15 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         const val ACTION_PREV = "com.honestfamily.dashboard.ACTION_SCHEDULE_PREV"
         const val ACTION_NEXT = "com.honestfamily.dashboard.ACTION_SCHEDULE_NEXT"
         const val ACTION_TODAY = "com.honestfamily.dashboard.ACTION_SCHEDULE_TODAY"
+        const val ACTION_OPEN_DAY = "com.honestfamily.dashboard.ACTION_SCHEDULE_OPEN_DAY"
+        const val ACTION_BACK_MONTH = "com.honestfamily.dashboard.ACTION_SCHEDULE_BACK_MONTH"
         const val EXTRA_ID = "widget_id"
+        const val EXTRA_DATE = "widget_date"
 
         private const val PREFS = "hf_dashboard"
         private const val KEY_WEEK_START = "schedule_week_starts_on"
+        private const val MODE_MONTH = "month"
+        private const val MODE_DAY = "day"
 
         private val EXEC = Executors.newSingleThreadExecutor()
     }

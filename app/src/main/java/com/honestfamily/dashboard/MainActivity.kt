@@ -97,8 +97,7 @@ class MainActivity : AppCompatActivity() {
                 swipe.isRefreshing = false
                 CookieManager.getInstance().flush()
                 AppConfig.syncTokenFromCookies(this@MainActivity)
-                Widgets.refreshAll(this@MainActivity)
-                ReminderScheduler.sync(this@MainActivity)
+                syncWidgetTokenThenRefresh()
             }
         }
 
@@ -175,6 +174,15 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         AppConfig.syncTokenFromCookies(this)
+    }
+
+    private fun syncWidgetTokenThenRefresh() {
+        val appCtx = applicationContext
+        Thread {
+            AppConfig.syncWidgetToken(appCtx)
+            Widgets.refreshAll(appCtx)
+            ReminderScheduler.sync(appCtx)
+        }.start()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

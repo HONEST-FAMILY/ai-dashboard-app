@@ -21,7 +21,7 @@ object ReminderScheduler {
 
     fun sync(context: Context) {
         val appCtx = context.applicationContext
-        val token = AppConfig.savedToken(appCtx) ?: return
+        val token = AppConfig.widgetToken(appCtx) ?: return
         EXEC.execute {
             try {
                 doSync(appCtx, token)
