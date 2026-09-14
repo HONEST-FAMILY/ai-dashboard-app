@@ -33,7 +33,16 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      - name: Decode signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
       - name: Build debug APK
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Prepare artifact
@@ -58,6 +67,9 @@ jobs:
             1. 아래 ai-dashboard.apk 를 안드로이드 폰에서 다운로드합니다.
             2. 처음 설치라면 "출처를 알 수 없는 앱 설치"를 허용합니다.
             3. 앱을 열어 평소처럼 로그인하면 됩니다.
+
+            이 버전(1.7)을 처음 받을 때만 한 번, 기존 앱을 지우고 새로 설치해 주세요.
+            이번부터 서명 키가 고정되어, 다음 버전부터는 지울 필요 없이 앱 위에 그대로 업데이트됩니다.
 
             홈 화면 위젯
             - 홈 화면 빈 곳을 길게 눌러 위젯 > AI 대시보드에서 "스케줄" / "즐겨찾기" 위젯을 추가하고 크기를 조절하세요.

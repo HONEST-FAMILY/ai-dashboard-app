@@ -152,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
+            AppConfig.seedSessionCookie(this)
             webView.loadUrl(startUrl(intent))
         }
 
@@ -167,6 +168,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intent.getStringExtra(AppConfig.EXTRA_OPEN_URL)?.takeIf { it.isNotBlank() }?.let {
+            AppConfig.seedSessionCookie(this)
             webView.loadUrl(it)
         }
     }

@@ -12,6 +12,8 @@ object AppConfig {
     private const val KEY_TOKEN = "token"
     private const val KEY_WIDGET_TOKEN = "widget_token"
 
+    private const val SESSION_MAX_AGE = 60 * 60 * 24 * 30 // 30일
+
     const val EXTRA_OPEN_URL = "open_url"
 
     fun savedToken(context: Context): String? {
@@ -49,8 +51,25 @@ object AppConfig {
         val body = Api.get("/auth/widget-token", session) ?: return
         try {
             val token = JSONObject(body).optJSONObject("data")?.optString("token", "")
-            if (!token.isNullOrBlank()) saveWidgetToken(context, token)
+            if (!token.isNullOrBlank()) {
+                saveWidgetToken(context, token)
+                writeSessionCookie(token)
+            }
         } catch (e: Exception) {
         }
+    }
+
+    // 웹 세션(token 쿠키)이 60분 만에 만료돼 뭘 하려고만 하면 "다시 로그인"하던 것을 막는다.
+    // 앱을 열 때마다 장수명 토큰을 쿠키에 심어 30일짜리 세션으로 되살린다.
+    fun seedSessionCookie(context: Context) {
+        val token = widgetToken(context) ?: return
+        writeSessionCookie(token)
+    }
+
+    private fun writeSessionCookie(token: String) {
+        val cm = CookieManager.getInstance()
+        cm.setAcceptCookie(true)
+        cm.setCookie(BASE_WEB, "token=$token; Path=/; Max-Age=$SESSION_MAX_AGE")
+        cm.flush()
     }
 }

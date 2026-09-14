@@ -33,7 +33,7 @@ private class ScheduleDayFactory(
         val prefs = context.getSharedPreferences("hf_dashboard", Context.MODE_PRIVATE)
         val date = prefs.getString("seldate_$widgetId", null) ?: return
         val token = AppConfig.widgetToken(context) ?: return
-        val body = Api.get("/schedules?from=$date&to=$date", token) ?: return
+        val body = Api.get("/schedules?from=$date&to=$date&mine=1", token) ?: return
         try {
             val arr = JSONObject(body).optJSONArray("data") ?: return
             val rows = ArrayList<Triple<Int, Int, DayItem>>()

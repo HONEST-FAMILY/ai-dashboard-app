@@ -407,7 +407,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     }
 
     private fun fetchSchedules(token: String, from: String, to: String): Map<String, List<Ev>>? {
-        val body = Api.get("/schedules?from=$from&to=$to", token) ?: return null
+        val body = Api.get("/schedules?from=$from&to=$to&mine=1", token) ?: return null
         return try {
             val arr = JSONObject(body).optJSONArray("data") ?: return emptyMap()
             val map = HashMap<String, MutableList<Ev>>()

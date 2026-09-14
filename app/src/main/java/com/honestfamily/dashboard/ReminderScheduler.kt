@@ -49,7 +49,7 @@ object ReminderScheduler {
         toCal.add(Calendar.DAY_OF_YEAR, DAYS_AHEAD)
         val to = fmt.format(toCal.time)
 
-        val body = Api.get("/schedules?from=$from&to=$to", token) ?: return
+        val body = Api.get("/schedules?from=$from&to=$to&mine=1", token) ?: return
         val arr = JSONObject(body).optJSONArray("data") ?: return
 
         val now = System.currentTimeMillis()
