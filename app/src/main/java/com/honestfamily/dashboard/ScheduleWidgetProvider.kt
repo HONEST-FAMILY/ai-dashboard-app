@@ -12,6 +12,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
+import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.view.View
@@ -170,13 +171,14 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         toCal.add(Calendar.DAY_OF_YEAR, 41)
         val to = fmt.format(toCal.time)
 
-        val byDate: Map<String, List<Ev>>? = if (token == null) null else fetchSchedules(token, from, to)
+        val result = if (token == null) FetchResult.AuthFailed else fetchSchedules(context, id, token, from, to)
 
-        if (byDate == null) {
+        if (result is FetchResult.AuthFailed) {
             views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
             views.setViewVisibility(R.id.widget_canvas, View.GONE)
             views.setTextViewText(R.id.widget_empty, context.getString(R.string.need_login))
         } else {
+            val byDate = if (result is FetchResult.Ok) result.byDate else emptyMap()
             val bitmap = drawCalendar(context, mgr, id, year, mon0, sundayFirst, todayStr, gridStart, byDate, fmt)
             views.setImageViewBitmap(R.id.widget_canvas, bitmap)
             views.setViewVisibility(R.id.widget_canvas, View.VISIBLE)
@@ -312,7 +314,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val dateFm = datePaint.fontMetrics
         val evFm = evPaint.fontMetrics
         val dateAreaH = dateR * 2f + pad
-        val maxLines = (((rowH - dateAreaH - pad) / evLineH).toInt()).coerceIn(0, 3)
+        val evGap = density * 2f
 
         val cell = gridStart.clone() as Calendar
         for (i in 0 until 42) {
@@ -340,32 +342,52 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             canvas.drawText(dateStr, cx, cy - (dateFm.ascent + dateFm.descent) / 2f, datePaint)
 
             val events = byDate[ds] ?: emptyList()
-            val n = events.size
             val evsTop = y0 + dateAreaH
-            val evAvail = colW - pad * 2f - barW - pad
-            for (k in 0 until maxLines) {
-                val lineTop = evsTop + evLineH * k
-                val baseline = lineTop + evLineH / 2f - (evFm.ascent + evFm.descent) / 2f
-                val overflow = n > maxLines && k == maxLines - 1
-                if (overflow) {
-                    evPaint.isStrikeThruText = false
-                    evPaint.color = mutedCol
-                    canvas.drawText("+${n - (maxLines - 1)}개", x0 + pad, baseline, evPaint)
-                    continue
-                }
-                if (k >= n) continue
+            val evsBottom = y0 + rowH - pad
+            val textLeft = x0 + pad + barW + pad
+            val evAvail = (colW - pad * 2f - barW - pad).toInt().coerceAtLeast(1)
+
+            var yCursor = evsTop
+            var drawn = 0
+            var k = 0
+            while (k < events.size) {
+                val avail = evsBottom - yCursor
+                if (avail < evLineH * 0.95f) break
+
                 val e = events[k]
-                val bar = if (e.done) mutedCol else barColor(context, e.color)
-                fillPaint.color = bar
-                val barTop = lineTop + evLineH * 0.18f
+                val lines = if (avail >= evLineH * 1.9f) 2 else 1
+                val layout = StaticLayout.Builder
+                    .obtain(e.title, 0, e.title.length, evPaint, evAvail)
+                    .setMaxLines(lines)
+                    .setEllipsize(TextUtils.TruncateAt.END)
+                    .setLineSpacing(0f, 1.0f)
+                    .setIncludePad(false)
+                    .build()
+                val blockH = layout.height.toFloat()
+
+                val moreAfterThis = events.size - k > 1
+                val roomAfter = (evsBottom - (yCursor + blockH + evGap)) >= evLineH * 0.95f
+                if (drawn > 0 && moreAfterThis && !roomAfter) {
+                    evPaint.color = mutedCol
+                    val baseline = yCursor + evLineH / 2f - (evFm.ascent + evFm.descent) / 2f
+                    canvas.drawText("+${events.size - k}개", x0 + pad, baseline, evPaint)
+                    break
+                }
+
+                fillPaint.color = barColor(context, e.color)
                 canvas.drawRoundRect(
-                    RectF(x0 + pad, barTop, x0 + pad + barW, barTop + evSize),
+                    RectF(x0 + pad, yCursor + density * 1.5f, x0 + pad + barW, yCursor + blockH - density * 1.5f),
                     barW / 2f, barW / 2f, fillPaint
                 )
-                evPaint.isStrikeThruText = e.done
-                evPaint.color = if (e.done) mutedCol else textCol
-                val clipped = TextUtils.ellipsize(e.title, evPaint, evAvail, TextUtils.TruncateAt.END)
-                canvas.drawText(clipped, 0, clipped.length, x0 + pad + barW + pad, baseline, evPaint)
+                evPaint.color = textCol
+                canvas.save()
+                canvas.translate(textLeft, yCursor)
+                layout.draw(canvas)
+                canvas.restore()
+
+                yCursor += blockH + evGap
+                drawn++
+                k++
             }
             cell.add(Calendar.DAY_OF_YEAR, 1)
         }
@@ -406,8 +428,27 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         return PendingIntent.getBroadcast(context, id * 1000 + 100 + index, intent, Widgets.piFlags(false))
     }
 
-    private fun fetchSchedules(token: String, from: String, to: String): Map<String, List<Ev>>? {
-        val body = Api.get("/schedules?from=$from&to=$to&mine=1", token) ?: return null
+    private fun fetchSchedules(context: Context, id: Int, token: String, from: String, to: String): FetchResult {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val range = "$from|$to"
+        val res = Api.request("/schedules?from=$from&to=$to&mine=1&is_done=0", token)
+
+        if (res.code == 200 && res.body != null) {
+            val map = parseSchedules(res.body) ?: return FetchResult.Unavailable
+            prefs.edit().putString(keyCacheRange(id), range).putString(keyCacheBody(id), res.body).apply()
+            return FetchResult.Ok(map)
+        }
+
+        if (res.code == 401) return FetchResult.AuthFailed
+
+        if (prefs.getString(keyCacheRange(id), null) == range) {
+            val cached = prefs.getString(keyCacheBody(id), null)
+            if (cached != null) parseSchedules(cached)?.let { return FetchResult.Ok(it) }
+        }
+        return FetchResult.Unavailable
+    }
+
+    private fun parseSchedules(body: String): Map<String, List<Ev>>? {
         return try {
             val arr = JSONObject(body).optJSONArray("data") ?: return emptyMap()
             val map = HashMap<String, MutableList<Ev>>()
@@ -415,11 +456,11 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                 val o = arr.optJSONObject(i) ?: continue
                 val date = o.optString("scheduled_date", "")
                 if (date.isBlank()) continue
+                if (o.optBoolean("is_done", false)) continue
                 map.getOrPut(date) { ArrayList() }.add(
                     Ev(
                         title = o.optString("title", "(제목 없음)"),
-                        color = o.optInt("color", 1),
-                        done = o.optBoolean("is_done", false)
+                        color = o.optInt("color", 1)
                     )
                 )
             }
@@ -463,8 +504,16 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     private fun keyOffset(id: Int) = "off_$id"
     private fun keyMode(id: Int) = "mode_$id"
     private fun keySelDate(id: Int) = "seldate_$id"
+    private fun keyCacheRange(id: Int) = "sched_range_$id"
+    private fun keyCacheBody(id: Int) = "sched_body_$id"
 
-    private data class Ev(val title: String, val color: Int, val done: Boolean)
+    private data class Ev(val title: String, val color: Int)
+
+    private sealed class FetchResult {
+        data class Ok(val byDate: Map<String, List<Ev>>) : FetchResult()
+        object AuthFailed : FetchResult()
+        object Unavailable : FetchResult()
+    }
 
     companion object {
         const val ACTION_REFRESH = "com.honestfamily.dashboard.ACTION_SCHEDULE_REFRESH"

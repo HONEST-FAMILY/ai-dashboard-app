@@ -33,13 +33,14 @@ private class ScheduleDayFactory(
         val prefs = context.getSharedPreferences("hf_dashboard", Context.MODE_PRIVATE)
         val date = prefs.getString("seldate_$widgetId", null) ?: return
         val token = AppConfig.widgetToken(context) ?: return
-        val body = Api.get("/schedules?from=$date&to=$date&mine=1", token) ?: return
+        val body = Api.get("/schedules?from=$date&to=$date&mine=1&is_done=0", token) ?: return
         try {
             val arr = JSONObject(body).optJSONArray("data") ?: return
             val rows = ArrayList<Triple<Int, Int, DayItem>>()
             for (i in 0 until arr.length()) {
                 val o = arr.optJSONObject(i) ?: continue
                 if (o.optString("scheduled_date", "") != date) continue
+                if (o.optBoolean("is_done", false)) continue
                 val item = DayItem(
                     id = o.optInt("id", 0),
                     title = o.optString("title", "(제목 없음)"),
