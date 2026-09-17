@@ -11,6 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.view.MotionEvent
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.URLUtil
@@ -34,6 +35,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var progress: ProgressBar
     private lateinit var swipe: SwipeRefreshLayout
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var touching = false
 
     private val fileChooser: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -45,7 +47,7 @@ class MainActivity : AppCompatActivity() {
     private val notifPermLauncher: ActivityResultLauncher<String> =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -55,8 +57,18 @@ class MainActivity : AppCompatActivity() {
 
         swipe.setColorSchemeColors(ContextCompat.getColor(this, R.color.widget_accent))
         swipe.setOnRefreshListener { webView.reload() }
+        webView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touching = true
+                    swipe.isEnabled = webView.scrollY == 0
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> touching = false
+            }
+            false
+        }
         webView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            swipe.isEnabled = scrollY == 0
+            if (!touching) swipe.isEnabled = scrollY == 0
         }
 
         CookieManager.getInstance().setAcceptCookie(true)
