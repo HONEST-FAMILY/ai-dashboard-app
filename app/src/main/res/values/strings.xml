@@ -17,6 +17,8 @@
     <string name="today">오늘</string>
     <string name="view_timetable">시간표</string>
     <string name="view_calendar">달력</string>
+    <string name="view_day">하루</string>
+    <string name="view_week">주간</string>
     <string name="back_to_calendar">달력으로</string>
     <string name="day_empty">이 날은 일정이 없어요\n＋ 를 눌러 추가하세요</string>
     <string name="toggle_done">완료 표시</string>

@@ -20,71 +20,57 @@
   .card{background:var(--panel);border-radius:22px;padding:12px;
     box-shadow:0 6px 22px rgba(0,0,0,.10);border:1px solid var(--border)}
   .hd{display:flex;align-items:center;gap:2px;padding-bottom:6px}
-  .hd .title{flex:1;font-size:15px;font-weight:800;padding-left:2px}
-  .chev{width:30px;height:30px;display:flex;align-items:center;justify-content:center;
-    color:var(--text);font-size:20px;font-weight:700}
+  .hd .title{flex:1;font-size:14px;font-weight:800;padding-left:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chev{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+    color:var(--text);font-size:19px;font-weight:700}
   .today{border:1px solid var(--accent);color:var(--accent);font-weight:800;
-    font-size:11.5px;border-radius:9px;padding:3px 9px;margin-left:6px}
+    font-size:11.5px;border-radius:9px;padding:3px 8px;margin-left:4px}
   .modebtn{background:var(--accent);color:#fff;font-weight:800;font-size:11.5px;
     border-radius:9px;padding:3px 8px;margin-left:4px}
-  .rf{width:28px;height:28px;display:flex;align-items:center;justify-content:center;
-    color:var(--muted);font-size:16px;margin-left:4px}
+  .seg{display:inline-flex;margin-left:6px}
+  .seg .on{background:var(--accent);color:#fff;font-weight:800;font-size:11.5px;border-radius:9px;padding:3px 8px}
+  .seg .off{border:1px solid var(--accent);color:var(--accent);font-weight:800;font-size:11.5px;border-radius:9px;padding:3px 8px;margin-left:3px}
+  .rf{width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:15px;margin-left:4px}
   .wk{display:grid;grid-template-columns:repeat(7,1fr)}
-  .wk div{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted);
-    padding:2px 0 4px}
+  .wk div{text-align:center;font-size:10.5px;font-weight:700;color:var(--muted);padding:2px 0 4px}
   .wk .sun{color:var(--rose)} .wk .sat{color:var(--accent)}
-  .grid{display:grid;grid-template-columns:repeat(7,1fr);
-    grid-template-rows:repeat(6,1fr);min-height:360px}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(6,1fr);min-height:360px}
   .cell{border-top:1px solid var(--border);padding:3px 2px 0 3px;min-height:60px;overflow:hidden}
   .cell:nth-child(-n+7){border-top:none}
-  .dnum{display:inline-flex;min-width:19px;height:19px;align-items:center;
-    justify-content:center;font-size:11.5px;padding:0 4px;border-radius:10px}
+  .dnum{display:inline-flex;min-width:19px;height:19px;align-items:center;justify-content:center;
+    font-size:11.5px;padding:0 4px;border-radius:10px}
   .dnum.sun{color:var(--rose)} .dnum.out{color:var(--out)}
   .dnum.today{background:var(--accent);color:#fff;font-weight:800}
-  .ev{font-size:10px;line-height:1.35;white-space:nowrap;overflow:hidden;
-    text-overflow:ellipsis;margin-top:1px}
+  .ev{font-size:10px;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
   .ev .bar{font-weight:900;margin-right:1px}
   .more{font-size:10px;color:var(--muted);margin-top:1px}
 
-  /* 시간표(주간) */
-  .thead{display:flex}
-  .thead .gut{width:30px;flex:none}
-  .thead .dh{flex:1;text-align:center;padding-bottom:4px}
-  .thead .dh .w{font-size:10px;font-weight:700;color:var(--muted)}
-  .thead .dh .n{display:inline-flex;min-width:20px;height:20px;align-items:center;
-    justify-content:center;font-size:12px;font-weight:700;border-radius:11px;margin-top:1px}
-  .thead .dh.sun .w,.thead .dh.sun .n{color:var(--rose)}
-  .thead .dh.sat .w{color:var(--accent)}
-  .thead .dh.today .n{background:var(--accent);color:#fff}
-  .allday{display:flex;border-top:1px solid var(--border)}
-  .allday .gut{width:30px;flex:none}
-  .allday .ad{flex:1;padding:2px 2px 0}
-  .adchip{display:flex;align-items:center;gap:3px;font-size:9.5px;line-height:1.5;
-    background:#f1f3ef;border-radius:4px;padding:0 3px;margin-bottom:2px;overflow:hidden;
-    white-space:nowrap;text-overflow:ellipsis}
-  .adchip .b{width:2.5px;height:10px;border-radius:2px;flex:none}
+  /* 시간표 하루 보기 */
+  .allday{display:flex;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:2px}
+  .allday .gut{width:34px;flex:none}
+  .allday .ad{flex:1;display:flex;flex-wrap:wrap;gap:3px}
+  .adchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;line-height:1.6;
+    border-radius:5px;padding:1px 7px 1px 4px}
+  .adchip .b{width:3px;height:12px;border-radius:2px;flex:none}
   .tbody{position:relative;display:flex}
-  .tbody .gut{width:30px;flex:none;position:relative}
-  .tbody .gut .hl{position:absolute;right:3px;font-size:8.5px;color:var(--muted);
-    transform:translateY(-50%)}
-  .tcols{flex:1;display:flex;position:relative}
+  .tbody .gut{width:34px;flex:none;position:relative}
+  .tbody .gut .hl{position:absolute;right:4px;font-size:9.5px;color:var(--muted);transform:translateY(-50%)}
   .tcol{flex:1;position:relative;border-left:1px solid var(--border)}
-  .tcol.today{background:rgba(2,149,90,.06)}
-  .hline{position:absolute;left:30px;right:0;border-top:1px solid var(--border)}
-  .blk{position:absolute;left:2px;right:2px;border-radius:4px;padding:1px 3px 1px 5px;
-    overflow:hidden;font-size:9px;line-height:1.25}
-  .blk .bb{position:absolute;left:0;top:0;bottom:0;width:2.5px;border-radius:3px}
-  .nowline{position:absolute;left:30px;right:0;height:0;border-top:1.5px solid var(--rose)}
-  .nowdot{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--rose);
-    left:27px;transform:translateY(-50%)}
+  .hline{position:absolute;left:34px;right:0;border-top:1px solid var(--border)}
+  .blk{position:absolute;left:3px;right:3px;border-radius:6px;padding:3px 6px 3px 9px;overflow:hidden}
+  .blk .bb{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px}
+  .blk .tm{font-size:9.5px;color:var(--muted);font-weight:700}
+  .blk .tt{font-size:11.5px;font-weight:700;line-height:1.25}
+  .nowline{position:absolute;left:34px;right:0;height:0;border-top:1.5px solid var(--rose)}
+  .nowdot{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--rose);left:30px;transform:translateY(-50%)}
 </style>
 </head>
 <body>
   <div class="frame">
     <h1>스케줄 위젯 — 달력 + 시간표(미리보기)</h1>
     <p class="note" style="background:#eafaf2;border:1px solid #b8e6cf;border-radius:12px;padding:10px 12px;color:#0f150e">⌚ <b>새로 나온 갤럭시워치 “시간표” 앱</b>이 궁금하시면 → <a href="./watch.html" style="color:#02955a;font-weight:800">워치 화면 미리보기 열기</a></p>
-    <p class="note">홈 화면 스케줄 위젯에 <b>‘시간표’ 버튼</b>을 새로 넣었습니다. 위젯 오른쪽 위 초록색 <b>시간표</b>를 누르면 한 주를 시간대별 표로 보고, <b>달력</b>을 누르면 다시 월 달력으로 돌아옵니다. 아래는 예상 모습입니다(실제 폰 위젯은 크기에 맞춰 자동 조절, 시간이 지정된 일정만 표 안에 시간대로 놓이고 시간 없는 일정은 맨 위 줄에 표시됩니다).</p>
-
+    <p class="note">홈 화면 스케줄 위젯에 <b>‘시간표’ 버튼</b>을 넣었습니다. 오른쪽 위 초록색 <b>시간표</b>를 누르면 시간대별 표로 바뀌고, 표 안 <b>하루 / 주간</b> 버튼으로 <b>오늘 하루</b>(넓게)와 <b>이번 주</b>를 오가며 봅니다. <b>달력</b>을 누르면 월 달력으로 돌아옵니다. 아래는 예상 모습입니다(실제 폰 위젯은 크기에 맞춰 자동 조절, 시간이 지정된 일정만 표 안에 시간대로 놓이고 시간 없는 일정은 맨 위 줄에 표시됩니다).</p>
     <h2>① 달력 모드 — 오른쪽 위에 새 ‘시간표’ 버튼</h2>
     <div class="card">
       <div class="hd">
@@ -99,36 +85,29 @@
       <div class="grid" id="grid"></div>
     </div>
 
-    <h2>② 시간표 모드 — 한 주를 시간대별로</h2>
+    <h2>② 시간표 — 하루 보기(기본, 넓게)</h2>
+    <p class="note" style="margin:0 0 8px">한 열에 몰려 좁아 보이던 걸, 기본을 <b>오늘 하루 전체 너비</b>로 바꿔 제목·시간이 잘 보이게 했습니다. ‹ › 로 날짜를 넘깁니다.</p>
     <div class="card">
       <div class="hd">
         <div class="today">달력</div>
-        <div class="title" style="padding-left:8px">9.13 – 9.19</div>
+        <div class="seg"><span class="on">하루</span><span class="off">주간</span></div>
+        <div class="title">9월 19일 (토)</div>
         <div class="chev">‹</div>
         <div class="chev">›</div>
-        <div class="today">오늘</div>
         <div class="rf">⟳</div>
       </div>
       <div id="tt"></div>
     </div>
   </div>
 <script>
-  const YEAR=2026, MON=9, TODAY="2026-09-13";
+  const YEAR=2026, MON=9, TODAY="2026-09-19";
   const PAL={1:"#0f150e",2:"#2563EB",3:"#DC2626",4:"#F0E442",5:"#0072B2",6:"#D55E00",7:"#CC79A7",8:"#7C3AED"};
   const EV={
-    "2026-08-31":[{t:"최민준 아들코칭",c:1},{t:"ESG 유지보수",c:5}],
-    "2026-09-01":[{t:"서울동행 유지보수",c:5}],
-    "2026-09-03":[{t:"애드온즈 배포",c:6}],
-    "2026-09-04":[{t:"어큐리티 미팅",c:2}],
-    "2026-09-06":[{t:"상위도전학원 미팅",c:8}],
-    "2026-09-10":[{t:"스테이앤조이 미팅",c:5}],
-    "2026-09-11":[{t:"동국님 저녁",c:1}],
-    "2026-09-12":[{t:"큰엄마 생신",c:3}],
-    "2026-09-15":[{t:"당근 밋업",c:2},{t:"줌미팅",c:1}],
-    "2026-09-24":[{t:"프로니카 구독 해제",c:6}],
-    "2026-09-25":[{t:"언더독 10만원 세발",c:2}],
-    "2026-10-01":[{t:"서울동행 유지보수",c:5}],
-    "2026-10-02":[{t:"하나 vip 카드 해지",c:2}]
+    "2026-09-14":[{t:"어큐리티 미팅",c:2}],
+    "2026-09-16":[{t:"상위도전학원 미팅",c:8}],
+    "2026-09-18":[{t:"스테이앤조이 미팅",c:5}],
+    "2026-09-19":[{t:"리퍼몰 영업 준비",c:2},{t:"식단 마무리",c:3},{t:"루틴운동",c:1}],
+    "2026-09-24":[{t:"프로니카 구독 해제",c:6}]
   };
   const wkDays=["일","월","화","수","목","금","토"];
   const wk=document.getElementById("wk");
@@ -159,60 +138,31 @@
     grid.appendChild(cell);
   }
 
-  // ── 시간표(주간) 미리보기 ──
-  // 한 주(일요일 시작): 9/13(일)~9/19(토). 시간이 있는 일정은 표 안에 시간대로, 시간 없는 일정은 맨 위 줄에.
-  const WEEK=[13,14,15,16,17,18,19];             // 날짜(일~토)
-  const TL={  // 요일 index → 시간 지정 일정
-    0:[{s:19*60,e:20*60+30,t:"동국님 저녁",c:1}],
-    1:[{s:10*60,e:11*60,t:"어큐리티 미팅",c:2},{s:14*60,e:15*60+30,t:"서울동행 유지보수",c:5}],
-    2:[{s:9*60+30,e:10*60+30,t:"데일리 스크럼",c:1}],
-    3:[{s:13*60,e:14*60,t:"상위도전학원",c:8}],
-    4:[{s:16*60,e:17*60,t:"언더독 미팅",c:2}],
-    5:[{s:11*60,e:12*60,t:"스테이앤조이",c:5}]
-  };
-  const AD={ // 요일 index → 시간 없는(종일) 일정
-    2:[{t:"큰엄마 생신",c:3}],
-    5:[{t:"프로니카 구독 해제",c:6}]
-  };
-  const H0=8, H1=21, HH=26;                       // 8시~21시, 시간당 26px
-  const tint=hex=>{ // 옅은 배경색
-    const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
-    const m=(x)=>Math.round(x*0.16+255*0.84);
-    return `rgb(${m(r)},${m(g)},${m(b)})`;
-  };
+  // ── 시간표 하루 보기(오늘, 전체 너비) ──
+  const TL=[ // 오늘(토)의 시간 지정 일정
+    {s:8*60+30,e:9*60+30,t:"스트레칭 및 부산소 운동",c:1},
+    {s:9*60+30,e:12*60+30,t:"리퍼몰 영업 준비",c:2},
+    {s:13*60,e:15*60,t:"식단 마무리 (식단페어)",c:3},
+    {s:15*60,e:16*60,t:"포장 인식 마저 테스트",c:6},
+    {s:16*60,e:16*60+30,t:"지산세 정리",c:1},
+    {s:17*60,e:17*60+40,t:"루틴운동",c:8}
+  ];
+  const AD=[{t:"카피라이팅",c:2},{t:"큰엄마 생신",c:3},{t:"당근 밋업",c:5}]; // 시간 없는(종일) 일정
+  const H0=8, H1=18, HH=40;
+  const tint=hex=>{const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+    const m=x=>Math.round(x*0.16+255*0.84); return `rgb(${m(r)},${m(g)},${m(b)})`;};
+  const hhmm=m=>`${pad(Math.floor(m/60))}:${pad(m%60)}`;
   const tt=document.getElementById("tt");
 
-  // 헤더(요일+날짜)
-  const thead=document.createElement("div"); thead.className="thead";
-  const hgut=document.createElement("div"); hgut.className="gut"; thead.appendChild(hgut);
-  for(let i=0;i<7;i++){
-    const dh=document.createElement("div"); dh.className="dh";
-    if(i===0)dh.classList.add("sun"); if(i===6)dh.classList.add("sat");
-    if(WEEK[i]===13)dh.classList.add("today");
-    dh.innerHTML=`<div class="w">${wkDays[i]}</div><div class="n">${WEEK[i]}</div>`;
-    thead.appendChild(dh);
-  }
-  tt.appendChild(thead);
+  const ad=document.createElement("div"); ad.className="allday";
+  const adg=document.createElement("div"); adg.className="gut"; ad.appendChild(adg);
+  const adb=document.createElement("div"); adb.className="ad";
+  AD.forEach(e=>{const c=document.createElement("span"); c.className="adchip";
+    c.style.background=tint(PAL[e.c]);
+    const b=document.createElement("span"); b.className="b"; b.style.background=PAL[e.c];
+    c.appendChild(b); c.appendChild(document.createTextNode(e.t)); adb.appendChild(c);});
+  ad.appendChild(adb); tt.appendChild(ad);
 
-  // 종일 줄
-  const hasAD=Object.keys(AD).length>0;
-  if(hasAD){
-    const ad=document.createElement("div"); ad.className="allday";
-    const g=document.createElement("div"); g.className="gut"; ad.appendChild(g);
-    for(let i=0;i<7;i++){
-      const c=document.createElement("div"); c.className="ad";
-      (AD[i]||[]).forEach(e=>{
-        const chip=document.createElement("div"); chip.className="adchip";
-        chip.style.background=tint(PAL[e.c]);
-        const b=document.createElement("span"); b.className="b"; b.style.background=PAL[e.c];
-        chip.appendChild(b); chip.appendChild(document.createTextNode(e.t)); c.appendChild(chip);
-      });
-      ad.appendChild(c);
-    }
-    tt.appendChild(ad);
-  }
-
-  // 본문(시간 눈금 + 열 + 블록)
   const tbody=document.createElement("div"); tbody.className="tbody";
   tbody.style.height=((H1-H0)*HH)+"px";
   const gut=document.createElement("div"); gut.className="gut"; tbody.appendChild(gut);
@@ -221,22 +171,18 @@
     const hl=document.createElement("div"); hl.className="hline"; hl.style.top=y+"px"; tbody.appendChild(hl);
     if(h<24){const lb=document.createElement("div"); lb.className="hl"; lb.style.top=y+"px"; lb.textContent=h; gut.appendChild(lb);}
   }
-  const cols=document.createElement("div"); cols.className="tcols";
-  for(let i=0;i<7;i++){
-    const col=document.createElement("div"); col.className="tcol";
-    if(WEEK[i]===13)col.classList.add("today");
-    (TL[i]||[]).forEach(e=>{
-      const top=(e.s-H0*60)/60*HH, hgt=Math.max(14,(e.e-e.s)/60*HH);
-      const blk=document.createElement("div"); blk.className="blk";
-      blk.style.top=top+"px"; blk.style.height=hgt+"px"; blk.style.background=tint(PAL[e.c]);
-      const bb=document.createElement("div"); bb.className="bb"; bb.style.background=PAL[e.c];
-      blk.appendChild(bb); blk.appendChild(document.createTextNode(e.t)); col.appendChild(blk);
-    });
-    cols.appendChild(col);
-  }
-  tbody.appendChild(cols);
-  // 오늘(일요일 13일) 현재 시각선 예시 — 오후 3시 20분
-  const nowMin=15*60+20, ny=(nowMin-H0*60)/60*HH;
+  const col=document.createElement("div"); col.className="tcol";
+  TL.forEach(e=>{
+    const top=(e.s-H0*60)/60*HH, hgt=Math.max(22,(e.e-e.s)/60*HH);
+    const blk=document.createElement("div"); blk.className="blk";
+    blk.style.top=top+"px"; blk.style.height=hgt+"px"; blk.style.background=tint(PAL[e.c]);
+    const bb=document.createElement("div"); bb.className="bb"; bb.style.background=PAL[e.c];
+    const tm=document.createElement("div"); tm.className="tm"; tm.textContent=`${hhmm(e.s)}–${hhmm(e.e)}`;
+    const tit=document.createElement("div"); tit.className="tt"; tit.textContent=e.t;
+    blk.appendChild(bb); blk.appendChild(tm); blk.appendChild(tit); col.appendChild(blk);
+  });
+  tbody.appendChild(col);
+  const nowMin=10*60+34, ny=(nowMin-H0*60)/60*HH;
   const nl=document.createElement("div"); nl.className="nowline"; nl.style.top=ny+"px"; tbody.appendChild(nl);
   const nd=document.createElement("div"); nd.className="nowdot"; nd.style.top=ny+"px"; tbody.appendChild(nd);
   tt.appendChild(tbody);
