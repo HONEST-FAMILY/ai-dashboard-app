@@ -43,6 +43,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
         for (id in appWidgetIds) {
             editor.remove(keyOffset(id))
+            editor.remove(keyWeekOffset(id))
             editor.remove(keyMode(id))
             editor.remove(keySelDate(id))
         }
@@ -79,6 +80,25 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     renderAsync(context, intArrayOf(id))
                 }
             }
+            ACTION_SHOW_WEEK -> {
+                val id = intent.getIntExtra(EXTRA_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    prefs.edit().putString(keyMode(id), MODE_WEEK).putInt(keyWeekOffset(id), 0).apply()
+                    renderAsync(context, intArrayOf(id))
+                }
+            }
+            ACTION_WEEK_PREV, ACTION_WEEK_NEXT, ACTION_WEEK_TODAY -> {
+                val id = intent.getIntExtra(EXTRA_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+                if (id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                    val cur = prefs.getInt(keyWeekOffset(id), 0)
+                    when (intent.action) {
+                        ACTION_WEEK_PREV -> prefs.edit().putInt(keyWeekOffset(id), cur - 1).apply()
+                        ACTION_WEEK_NEXT -> prefs.edit().putInt(keyWeekOffset(id), cur + 1).apply()
+                        ACTION_WEEK_TODAY -> prefs.edit().putInt(keyWeekOffset(id), 0).apply()
+                    }
+                    renderAsync(context, intArrayOf(id))
+                }
+            }
             else -> super.onReceive(context, intent)
         }
     }
@@ -109,12 +129,20 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         bindHeaderClicks(context, views, id)
 
         val dayMode = token != null && mode == MODE_DAY
-        if (dayMode) {
-            renderDay(context, views, id, prefs)
-            showDay(views)
-        } else {
-            renderMonth(context, mgr, id, views, token, prefs)
-            showMonth(views)
+        val weekMode = token != null && mode == MODE_WEEK
+        when {
+            weekMode -> {
+                renderWeek(context, mgr, id, views, token, prefs)
+                showWeek(views)
+            }
+            dayMode -> {
+                renderDay(context, views, id, prefs)
+                showDay(views)
+            }
+            else -> {
+                renderMonth(context, mgr, id, views, token, prefs)
+                showMonth(views)
+            }
         }
 
         mgr.updateAppWidget(id, views)
@@ -210,6 +238,56 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.day_empty, addPi)
     }
 
+    private fun renderWeek(
+        context: Context,
+        mgr: AppWidgetManager,
+        id: Int,
+        views: RemoteViews,
+        token: String?,
+        prefs: android.content.SharedPreferences
+    ) {
+        val woff = prefs.getInt(keyWeekOffset(id), 0)
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.KOREA)
+        val todayStr = fmt.format(Calendar.getInstance().time)
+        val sundayFirst = weekStartsOnSunday(context, token)
+
+        val weekStart = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            add(Calendar.DAY_OF_YEAR, woff * 7)
+        }
+        val dowSun0 = weekStart.get(Calendar.DAY_OF_WEEK) - 1
+        val back = if (sundayFirst) dowSun0 else (dowSun0 + 6) % 7
+        weekStart.add(Calendar.DAY_OF_YEAR, -back)
+
+        val weekEnd = weekStart.clone() as Calendar
+        weekEnd.add(Calendar.DAY_OF_YEAR, 6)
+
+        val mdFmt = SimpleDateFormat("M.d", Locale.KOREA)
+        views.setTextViewText(R.id.week_title, "${mdFmt.format(weekStart.time)} – ${mdFmt.format(weekEnd.time)}")
+
+        val from = fmt.format(weekStart.time)
+        val to = fmt.format(weekEnd.time)
+
+        val result = if (token == null) FetchResult.AuthFailed else fetchWeek(context, id, token, from, to)
+
+        if (result is FetchResult.AuthFailed) {
+            views.setViewVisibility(R.id.week_empty, View.VISIBLE)
+            views.setViewVisibility(R.id.week_canvas, View.GONE)
+            views.setTextViewText(R.id.week_empty, context.getString(R.string.need_login))
+        } else {
+            val byDate = if (result is FetchResult.OkWeek) result.byDate else emptyMap()
+            val bitmap = drawTimetable(context, mgr, id, weekStart, todayStr, woff, byDate, fmt)
+            views.setImageViewBitmap(R.id.week_canvas, bitmap)
+            views.setViewVisibility(R.id.week_canvas, View.VISIBLE)
+            views.setViewVisibility(R.id.week_empty, View.GONE)
+        }
+
+        bindWeekColumnClicks(context, views, id, weekStart, fmt)
+    }
+
     private fun setupDayList(context: Context, views: RemoteViews, id: Int) {
         val svc = Intent(context, ScheduleDayWidgetService::class.java).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
@@ -234,6 +312,13 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.widget_refresh, broadcast(context, id, ACTION_REFRESH, 4))
         views.setOnClickPendingIntent(R.id.day_refresh, broadcast(context, id, ACTION_REFRESH, 4))
         views.setOnClickPendingIntent(R.id.day_back, broadcast(context, id, ACTION_BACK_MONTH, 7))
+        views.setOnClickPendingIntent(R.id.mode_timetable, broadcast(context, id, ACTION_SHOW_WEEK, 8))
+
+        views.setOnClickPendingIntent(R.id.week_back, broadcast(context, id, ACTION_BACK_MONTH, 7))
+        views.setOnClickPendingIntent(R.id.week_prev, weekBroadcast(context, id, ACTION_WEEK_PREV, 1))
+        views.setOnClickPendingIntent(R.id.week_next, weekBroadcast(context, id, ACTION_WEEK_NEXT, 2))
+        views.setOnClickPendingIntent(R.id.week_today, weekBroadcast(context, id, ACTION_WEEK_TODAY, 3))
+        views.setOnClickPendingIntent(R.id.week_refresh, broadcast(context, id, ACTION_REFRESH, 4))
 
         val openPi = PendingIntent.getActivity(context, id * 10 + 5, openScheduleIntent(context, "/schedule"), Widgets.piFlags(false))
         views.setOnClickPendingIntent(R.id.widget_title, openPi)
@@ -248,6 +333,8 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setViewVisibility(R.id.month_body, View.VISIBLE)
         views.setViewVisibility(R.id.day_header, View.GONE)
         views.setViewVisibility(R.id.day_body, View.GONE)
+        views.setViewVisibility(R.id.week_header, View.GONE)
+        views.setViewVisibility(R.id.week_body, View.GONE)
     }
 
     private fun showDay(views: RemoteViews) {
@@ -256,6 +343,18 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         views.setViewVisibility(R.id.month_body, View.GONE)
         views.setViewVisibility(R.id.day_header, View.VISIBLE)
         views.setViewVisibility(R.id.day_body, View.VISIBLE)
+        views.setViewVisibility(R.id.week_header, View.GONE)
+        views.setViewVisibility(R.id.week_body, View.GONE)
+    }
+
+    private fun showWeek(views: RemoteViews) {
+        views.setViewVisibility(R.id.month_header, View.GONE)
+        views.setViewVisibility(R.id.weekday_row, View.GONE)
+        views.setViewVisibility(R.id.month_body, View.GONE)
+        views.setViewVisibility(R.id.day_header, View.GONE)
+        views.setViewVisibility(R.id.day_body, View.GONE)
+        views.setViewVisibility(R.id.week_header, View.VISIBLE)
+        views.setViewVisibility(R.id.week_body, View.VISIBLE)
     }
 
     private fun drawCalendar(
@@ -406,6 +505,286 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    private fun drawTimetable(
+        context: Context,
+        mgr: AppWidgetManager,
+        id: Int,
+        weekStart: Calendar,
+        todayStr: String,
+        woff: Int,
+        byDate: Map<String, List<TEv>>,
+        fmt: SimpleDateFormat
+    ): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val opts = mgr.getAppWidgetOptions(id)
+        val minWidthDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+        val maxHeightDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+        val wDp = if (minWidthDp > 0) minWidthDp else 250
+        val hDp = if (maxHeightDp > 0) maxHeightDp else 260
+        val w = ((wDp - 24) * density).toInt().coerceIn(240, 1400)
+        val h = ((hDp - 54) * density).toInt().coerceIn(200, 1600)
+
+        val textCol = ContextCompat.getColor(context, R.color.widget_text)
+        val mutedCol = ContextCompat.getColor(context, R.color.widget_text_muted)
+        val roseCol = ContextCompat.getColor(context, R.color.widget_rose)
+        val accentCol = ContextCompat.getColor(context, R.color.widget_accent)
+        val todayTextCol = ContextCompat.getColor(context, R.color.widget_today_text)
+        val borderCol = ContextCompat.getColor(context, R.color.widget_border)
+
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val unit = w / 7.85f
+        val gutterW = unit * 0.85f
+        val dayW = unit
+        val pad = density * 2f
+
+        val dates = Array(7) { "" }
+        val timed = Array(7) { ArrayList<TEv>() }
+        val untimed = Array(7) { ArrayList<TEv>() }
+        run {
+            val c = weekStart.clone() as Calendar
+            for (i in 0 until 7) {
+                val ds = fmt.format(c.time)
+                dates[i] = ds
+                for (e in byDate[ds] ?: emptyList()) {
+                    if (e.start != null && e.end != null && e.end > e.start) timed[i].add(e) else untimed[i].add(e)
+                }
+                untimed[i].sortWith(compareBy({ it.position }, { it.id }))
+                c.add(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
+
+        val headH = density * 30f
+        val allRowH = density * 12.5f
+        var maxUntimed = 0
+        for (i in 0 until 7) if (untimed[i].size > maxUntimed) maxUntimed = untimed[i].size
+        val allRows = Math.min(2, maxUntimed)
+        val allDayH = if (allRows > 0) allRows * allRowH + pad else 0f
+
+        var minM = Int.MAX_VALUE
+        var maxM = Int.MIN_VALUE
+        for (i in 0 until 7) for (e in timed[i]) {
+            if (e.start!! < minM) minM = e.start
+            if (e.end!! > maxM) maxM = e.end
+        }
+        var hourStart: Int
+        var hourEnd: Int
+        if (minM == Int.MAX_VALUE) {
+            hourStart = 8
+            hourEnd = 20
+        } else {
+            hourStart = minM / 60
+            hourEnd = (maxM + 59) / 60
+        }
+        if (hourEnd - hourStart < 6) {
+            hourEnd = Math.min(24, hourStart + 6)
+            hourStart = Math.max(0, hourEnd - 6)
+        }
+        hourStart = hourStart.coerceIn(0, 18)
+        hourEnd = hourEnd.coerceIn(hourStart + 4, 24)
+        val startMinTop = hourStart * 60
+        val totalMin = (hourEnd - hourStart) * 60
+        val gridTop = headH + allDayH
+        val gridBottom = h.toFloat()
+        val gridH = gridBottom - gridTop
+        val pxPerMin = gridH / totalMin
+
+        val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = borderCol; strokeWidth = Math.max(1f, density * 0.5f) }
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val wdPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = density * 10f; textAlign = Paint.Align.CENTER; isFakeBoldText = true }
+        val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = density * 12f; textAlign = Paint.Align.CENTER; isFakeBoldText = true }
+        val timePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = density * 8.5f; textAlign = Paint.Align.RIGHT; color = mutedCol }
+        val evPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { textSize = density * 8.5f }
+
+        val c2 = weekStart.clone() as Calendar
+        for (i in 0 until 7) {
+            val x0 = gutterW + dayW * i
+            val isToday = dates[i] == todayStr
+            val dow = c2.get(Calendar.DAY_OF_WEEK)
+            if (isToday) {
+                fillPaint.color = Color.argb(26, Color.red(accentCol), Color.green(accentCol), Color.blue(accentCol))
+                canvas.drawRect(x0, 0f, x0 + dayW, gridBottom, fillPaint)
+            }
+            val wdLabel = when (dow) {
+                Calendar.SUNDAY -> "일"; Calendar.MONDAY -> "월"; Calendar.TUESDAY -> "화"
+                Calendar.WEDNESDAY -> "수"; Calendar.THURSDAY -> "목"; Calendar.FRIDAY -> "금"; else -> "토"
+            }
+            wdPaint.color = when (dow) { Calendar.SUNDAY -> roseCol; Calendar.SATURDAY -> accentCol; else -> mutedCol }
+            val cx = x0 + dayW / 2f
+            canvas.drawText(wdLabel, cx, density * 11f, wdPaint)
+            val dayNum = c2.get(Calendar.DAY_OF_MONTH).toString()
+            if (isToday) {
+                fillPaint.color = accentCol
+                canvas.drawCircle(cx, density * 20.5f, density * 8.5f, fillPaint)
+                datePaint.color = todayTextCol
+            } else {
+                datePaint.color = if (dow == Calendar.SUNDAY) roseCol else textCol
+            }
+            val dfm = datePaint.fontMetrics
+            canvas.drawText(dayNum, cx, density * 20.5f - (dfm.ascent + dfm.descent) / 2f, datePaint)
+            c2.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        linePaint.color = borderCol
+        for (i in 0..7) {
+            val x = gutterW + dayW * i
+            canvas.drawLine(x, headH, x, gridBottom, linePaint)
+        }
+        canvas.drawLine(0f, headH, w.toFloat(), headH, linePaint)
+        if (allDayH > 0f) canvas.drawLine(0f, gridTop, w.toFloat(), gridTop, linePaint)
+
+        if (allRows > 0) {
+            for (i in 0 until 7) {
+                val x0 = gutterW + dayW * i
+                val list = untimed[i]
+                var drawn = 0
+                var y = headH + pad / 2f
+                var k = 0
+                while (k < list.size && drawn < allRows) {
+                    val overflow = list.size - drawn
+                    if (drawn == allRows - 1 && overflow > 1) {
+                        evPaint.color = mutedCol
+                        canvas.drawText("+$overflow", x0 + pad, y + allRowH * 0.72f, evPaint)
+                        break
+                    }
+                    val e = list[k]
+                    fillPaint.color = tintColor(context, e.color)
+                    canvas.drawRoundRect(RectF(x0 + pad, y, x0 + dayW - pad, y + allRowH - density * 1.5f), density * 3f, density * 3f, fillPaint)
+                    fillPaint.color = barColor(context, e.color)
+                    canvas.drawRect(x0 + pad, y, x0 + pad + density * 2.5f, y + allRowH - density * 1.5f, fillPaint)
+                    evPaint.color = textCol
+                    val tw = (dayW - pad * 2 - density * 5f).coerceAtLeast(1f)
+                    val ell = TextUtils.ellipsize(e.title, evPaint, tw, TextUtils.TruncateAt.END)
+                    canvas.drawText(ell, 0, ell.length, x0 + pad + density * 4.5f, y + allRowH * 0.70f, evPaint)
+                    y += allRowH
+                    drawn++
+                    k++
+                }
+            }
+        }
+
+        val labelEvery = if (pxPerMin * 60f >= density * 26f) 1 else 2
+        var hh = hourStart
+        while (hh <= hourEnd) {
+            val y = gridTop + (hh * 60 - startMinTop) * pxPerMin
+            linePaint.color = borderCol
+            canvas.drawLine(gutterW, y, w.toFloat(), y, linePaint)
+            if ((hh - hourStart) % labelEvery == 0 && hh < 24) {
+                canvas.drawText("$hh", gutterW - density * 3f, y + density * 8f, timePaint)
+            }
+            hh++
+        }
+
+        for (i in 0 until 7) {
+            val laid = layoutOverlaps(timed[i])
+            val colBase = gutterW + dayW * i
+            for (p in laid) {
+                val ncol = p.ncol.coerceAtLeast(1)
+                val cw = (dayW - pad * 2f) / ncol
+                val ex = colBase + pad + cw * p.col
+                var ey0 = gridTop + (p.ev.start!! - startMinTop) * pxPerMin
+                var ey1 = gridTop + (p.ev.end!! - startMinTop) * pxPerMin
+                ey0 = ey0.coerceIn(gridTop, gridBottom)
+                ey1 = ey1.coerceIn(gridTop, gridBottom)
+                if (ey1 - ey0 < density * 12f) ey1 = Math.min(gridBottom, ey0 + density * 12f)
+                val rect = RectF(ex + density * 0.5f, ey0 + density * 0.5f, ex + cw - density * 0.5f, ey1 - density * 0.5f)
+                fillPaint.color = tintColor(context, p.ev.color)
+                canvas.drawRoundRect(rect, density * 3f, density * 3f, fillPaint)
+                fillPaint.color = barColor(context, p.ev.color)
+                canvas.drawRect(rect.left, rect.top, rect.left + density * 2.5f, rect.bottom, fillPaint)
+                val availW = (rect.width() - density * 6f).toInt()
+                if (availW > density * 8) {
+                    evPaint.color = textCol
+                    val maxLines = ((rect.height() - density * 2f) / (evPaint.textSize * 1.25f)).toInt().coerceIn(1, 3)
+                    val layout = StaticLayout.Builder
+                        .obtain(p.ev.title, 0, p.ev.title.length, evPaint, availW)
+                        .setMaxLines(maxLines)
+                        .setEllipsize(TextUtils.TruncateAt.END)
+                        .setLineSpacing(0f, 1.0f)
+                        .setIncludePad(false)
+                        .build()
+                    canvas.save()
+                    canvas.translate(rect.left + density * 4.5f, rect.top + density * 1.5f)
+                    layout.draw(canvas)
+                    canvas.restore()
+                }
+            }
+        }
+
+        if (woff == 0) {
+            val now = Calendar.getInstance()
+            val nowMin = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+            if (nowMin in startMinTop..(hourEnd * 60)) {
+                val y = gridTop + (nowMin - startMinTop) * pxPerMin
+                val nowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = roseCol; strokeWidth = Math.max(1.5f, density * 1f) }
+                canvas.drawLine(gutterW, y, w.toFloat(), y, nowPaint)
+                fillPaint.color = roseCol
+                canvas.drawCircle(gutterW, y, density * 2.5f, fillPaint)
+            }
+        }
+
+        return bitmap
+    }
+
+    private fun bindWeekColumnClicks(context: Context, views: RemoteViews, id: Int, weekStart: Calendar, fmt: SimpleDateFormat) {
+        val cell = weekStart.clone() as Calendar
+        for (i in 0 until 7) {
+            val ds = fmt.format(cell.time)
+            val colId = context.resources.getIdentifier("wcol_$i", "id", context.packageName)
+            if (colId != 0) {
+                views.setOnClickPendingIntent(colId, broadcastOpenDay(context, id, ds, 700 + i))
+            }
+            cell.add(Calendar.DAY_OF_YEAR, 1)
+        }
+    }
+
+    private fun layoutOverlaps(items: List<TEv>): List<Placed> {
+        val sorted = items.sortedWith(compareBy({ it.start ?: 0 }, { it.end ?: 0 }, { it.id }))
+        val result = ArrayList<Placed>()
+        var cluster = ArrayList<Placed>()
+        var clusterEnd = -1
+        fun flush() {
+            if (cluster.isEmpty()) return
+            val colEnds = ArrayList<Int>()
+            for (p in cluster) {
+                val s = p.ev.start ?: 0
+                var ci = colEnds.indexOfFirst { it <= s }
+                if (ci == -1) {
+                    ci = colEnds.size
+                    colEnds.add(p.ev.end ?: 0)
+                } else {
+                    colEnds[ci] = p.ev.end ?: 0
+                }
+                p.col = ci
+            }
+            val ncol = colEnds.size
+            for (p in cluster) {
+                p.ncol = ncol
+                result.add(p)
+            }
+            cluster = ArrayList()
+            clusterEnd = -1
+        }
+        for (ev in sorted) {
+            val s = ev.start ?: 0
+            if (cluster.isNotEmpty() && s >= clusterEnd) flush()
+            cluster.add(Placed(ev))
+            clusterEnd = Math.max(clusterEnd, ev.end ?: 0)
+        }
+        flush()
+        return result
+    }
+
+    private fun tintColor(context: Context, slot: Int): Int {
+        val c = barColor(context, slot)
+        val a = 0.16f
+        val r = (Color.red(c) * a + 255 * (1 - a)).toInt().coerceIn(0, 255)
+        val g = (Color.green(c) * a + 255 * (1 - a)).toInt().coerceIn(0, 255)
+        val b = (Color.blue(c) * a + 255 * (1 - a)).toInt().coerceIn(0, 255)
+        return Color.rgb(r, g, b)
+    }
+
     private fun openScheduleIntent(context: Context, path: String): Intent =
         Intent(context, MainActivity::class.java).apply {
             action = "com.honestfamily.dashboard.OPEN_" + path.hashCode()
@@ -418,6 +797,13 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
             .setAction(action)
             .putExtra(EXTRA_ID, id)
         return PendingIntent.getBroadcast(context, id * 10 + code, intent, Widgets.piFlags(false))
+    }
+
+    private fun weekBroadcast(context: Context, id: Int, action: String, n: Int): PendingIntent {
+        val intent = Intent(context, ScheduleWidgetProvider::class.java)
+            .setAction(action)
+            .putExtra(EXTRA_ID, id)
+        return PendingIntent.getBroadcast(context, id * 1000 + 300 + n, intent, Widgets.piFlags(false))
     }
 
     private fun broadcastOpenDay(context: Context, id: Int, date: String, index: Int): PendingIntent {
@@ -470,6 +856,54 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         }
     }
 
+    private fun fetchWeek(context: Context, id: Int, token: String, from: String, to: String): FetchResult {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val range = "$from|$to"
+        val res = Api.request("/schedules?from=$from&to=$to&mine=1&is_done=0", token)
+
+        if (res.code == 200 && res.body != null) {
+            val map = parseWeek(res.body) ?: return FetchResult.Unavailable
+            prefs.edit().putString(keyWeekCacheRange(id), range).putString(keyWeekCacheBody(id), res.body).apply()
+            return FetchResult.OkWeek(map)
+        }
+
+        if (res.code == 401) return FetchResult.AuthFailed
+
+        if (prefs.getString(keyWeekCacheRange(id), null) == range) {
+            val cached = prefs.getString(keyWeekCacheBody(id), null)
+            if (cached != null) parseWeek(cached)?.let { return FetchResult.OkWeek(it) }
+        }
+        return FetchResult.Unavailable
+    }
+
+    private fun parseWeek(body: String): Map<String, List<TEv>>? {
+        return try {
+            val arr = JSONObject(body).optJSONArray("data") ?: return emptyMap()
+            val map = HashMap<String, MutableList<TEv>>()
+            for (i in 0 until arr.length()) {
+                val o = arr.optJSONObject(i) ?: continue
+                val date = o.optString("scheduled_date", "")
+                if (date.isBlank()) continue
+                if (o.optBoolean("is_done", false)) continue
+                val start = if (o.isNull("start_minute")) null else o.optInt("start_minute")
+                val end = if (o.isNull("end_minute")) null else o.optInt("end_minute")
+                map.getOrPut(date) { ArrayList() }.add(
+                    TEv(
+                        id = o.optInt("id", 0),
+                        title = o.optString("title", "(제목 없음)"),
+                        color = o.optInt("color", 1),
+                        start = start,
+                        end = end,
+                        position = o.optInt("position", 0)
+                    )
+                )
+            }
+            map
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun weekStartsOnSunday(context: Context, token: String?): Boolean {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (token != null) {
@@ -502,15 +936,30 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     }
 
     private fun keyOffset(id: Int) = "off_$id"
+    private fun keyWeekOffset(id: Int) = "woff_$id"
     private fun keyMode(id: Int) = "mode_$id"
     private fun keySelDate(id: Int) = "seldate_$id"
     private fun keyCacheRange(id: Int) = "sched_range_$id"
     private fun keyCacheBody(id: Int) = "sched_body_$id"
+    private fun keyWeekCacheRange(id: Int) = "week_range_$id"
+    private fun keyWeekCacheBody(id: Int) = "week_body_$id"
 
     private data class Ev(val title: String, val color: Int)
 
+    private data class TEv(
+        val id: Int,
+        val title: String,
+        val color: Int,
+        val start: Int?,
+        val end: Int?,
+        val position: Int
+    )
+
+    private class Placed(val ev: TEv, var col: Int = 0, var ncol: Int = 1)
+
     private sealed class FetchResult {
         data class Ok(val byDate: Map<String, List<Ev>>) : FetchResult()
+        data class OkWeek(val byDate: Map<String, List<TEv>>) : FetchResult()
         object AuthFailed : FetchResult()
         object Unavailable : FetchResult()
     }
@@ -522,6 +971,10 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         const val ACTION_TODAY = "com.honestfamily.dashboard.ACTION_SCHEDULE_TODAY"
         const val ACTION_OPEN_DAY = "com.honestfamily.dashboard.ACTION_SCHEDULE_OPEN_DAY"
         const val ACTION_BACK_MONTH = "com.honestfamily.dashboard.ACTION_SCHEDULE_BACK_MONTH"
+        const val ACTION_SHOW_WEEK = "com.honestfamily.dashboard.ACTION_SCHEDULE_SHOW_WEEK"
+        const val ACTION_WEEK_PREV = "com.honestfamily.dashboard.ACTION_SCHEDULE_WEEK_PREV"
+        const val ACTION_WEEK_NEXT = "com.honestfamily.dashboard.ACTION_SCHEDULE_WEEK_NEXT"
+        const val ACTION_WEEK_TODAY = "com.honestfamily.dashboard.ACTION_SCHEDULE_WEEK_TODAY"
         const val EXTRA_ID = "widget_id"
         const val EXTRA_DATE = "widget_date"
 
@@ -529,6 +982,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         private const val KEY_WEEK_START = "schedule_week_starts_on"
         private const val MODE_MONTH = "month"
         private const val MODE_DAY = "day"
+        private const val MODE_WEEK = "week"
 
         private val EXEC = Executors.newSingleThreadExecutor()
     }

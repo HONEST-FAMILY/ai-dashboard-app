@@ -60,6 +60,21 @@
             android:textSize="11.5sp"
             android:textStyle="bold" />
 
+        <TextView
+            android:id="@+id/mode_timetable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/mode_pill"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:text="@string/view_timetable"
+            android:textColor="@color/widget_today_text"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
         <ImageView
             android:id="@+id/nav_add"
             android:layout_width="30dp"
@@ -124,6 +139,86 @@
 
         <ImageView
             android:id="@+id/day_refresh"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="2dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_refresh"
+            android:contentDescription="@string/refresh"
+            android:tint="@color/widget_text_muted" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/week_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/week_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/today_pill"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:text="@string/view_calendar"
+            android:textColor="@color/widget_accent"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/week_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:paddingStart="6dp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/widget_text"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/week_prev"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_chevron_left"
+            android:contentDescription="@string/prev_week"
+            android:tint="@color/widget_text" />
+
+        <ImageView
+            android:id="@+id/week_next"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:padding="4dp"
+            android:src="@drawable/ic_chevron"
+            android:contentDescription="@string/next_week"
+            android:tint="@color/widget_text" />
+
+        <TextView
+            android:id="@+id/week_today"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/today_pill"
+            android:paddingStart="9dp"
+            android:paddingEnd="9dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:text="@string/today"
+            android:textColor="@color/widget_accent"
+            android:textSize="11.5sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/week_refresh"
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:layout_marginStart="2dp"
@@ -501,6 +596,78 @@
             android:layout_height="match_parent"
             android:gravity="center"
             android:text="@string/day_empty"
+            android:textColor="@color/widget_text_muted"
+            android:textSize="13sp" />
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/week_body"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/week_canvas"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:contentDescription="@string/schedule_widget_title" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:weightSum="7.85">
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.85" />
+            <FrameLayout
+                android:id="@+id/wcol_0"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+            <FrameLayout
+                android:id="@+id/wcol_1"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+            <FrameLayout
+                android:id="@+id/wcol_2"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+            <FrameLayout
+                android:id="@+id/wcol_3"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+            <FrameLayout
+                android:id="@+id/wcol_4"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+            <FrameLayout
+                android:id="@+id/wcol_5"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+            <FrameLayout
+                android:id="@+id/wcol_6"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/week_empty"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:background="@color/widget_bg"
+            android:visibility="gone"
+            android:text="@string/need_login"
             android:textColor="@color/widget_text_muted"
             android:textSize="13sp" />
     </FrameLayout>
