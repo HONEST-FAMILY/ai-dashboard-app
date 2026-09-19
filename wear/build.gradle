@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace 'com.honestfamily.dashboard'
+    namespace 'com.honestfamily.dashboard.wear'
     compileSdk 34
 
     defaultConfig {
         applicationId "com.honestfamily.dashboard"
-        minSdk 26
+        minSdk 30
         targetSdk 34
-        versionCode 12
-        versionName "2.1"
+        versionCode 1
+        versionName "1.0"
     }
 
     signingConfigs {
@@ -29,7 +29,6 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ""
             if (System.getenv("ANDROID_KEYSTORE_FILE")) {
                 signingConfig signingConfigs.release
             }
@@ -55,7 +54,5 @@ android {
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'com.google.android.gms:play-services-wearable:18.1.0'
 }

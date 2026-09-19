@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>갤럭시워치 시간표 미리보기</title>
+<style>
+  :root{ --bg:#f6f8f5; --panel:#ffffff; --border:#eaece6; --text:#0f150e; --muted:#8b938a; --accent:#02955a; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",Roboto,sans-serif;
+    padding:18px 14px 40px;-webkit-text-size-adjust:100%}
+  h1{font-size:16px;margin:2px 0 6px}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.65;margin:0 0 16px}
+  .frame{max-width:400px;margin:0 auto}
+  .watch{display:flex;justify-content:center;margin:10px 0 6px}
+  .bezel{background:#1c1f1a;border-radius:50%;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+  canvas{display:block;border-radius:50%;background:#0b0f0a}
+  .ctrls{display:flex;gap:8px;justify-content:center;margin:10px 0 2px}
+  .btn{flex:1;max-width:120px;text-align:center;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;padding:10px 0;font-size:14px;font-weight:700;color:var(--text)}
+  .btn.now{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .legend{font-size:12px;color:var(--muted);line-height:1.7;margin:16px 2px 0}
+  .legend b{color:var(--text)}
+  .back{display:inline-block;font-size:12.5px;color:var(--accent);text-decoration:none;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <a class="back" href="./index.html">← 홈 위젯 미리보기</a>
+  <h1>갤럭시워치 “시간표” 미리보기</h1>
+  <p class="note">실제 워치 앱과 같은 화면입니다. 지금 시간에 걸린 일정이 뜨고, 원형 게이지가 <b>남은 시간</b>만큼 줄어듭니다.
+  화면 좌·우를 누르거나 아래 버튼으로 이전/다음 일정을 넘길 수 있어요. 아래 예시는 지금 시각 기준으로 만들어졌습니다.</p>
+
+  <div class="watch">
+    <div class="bezel">
+      <canvas id="w" width="300" height="300"></canvas>
+    </div>
+  </div>
+
+  <div class="ctrls">
+    <div class="btn" id="prev">‹ 이전</div>
+    <div class="btn now" id="now">지금</div>
+    <div class="btn" id="next">다음 ›</div>
+  </div>
+
+  <div class="legend">
+    <b>게이지</b> — 원 둘레가 한 바퀴 = 그 일정의 전체 시간. 시간이 흐를수록 남은 만큼만 색이 남습니다.<br>
+    <b>가운데 숫자</b> — 지금 일정이 끝나기까지 남은 시간(분).<br>
+    <b>아래 시간</b> — 그 일정의 원래 시작~끝 시각(경각심을 위해 항상 함께 표시).<br>
+    <b>이전 / 다음</b> — 계획이 밀릴 때 손으로 넘겨 다른 일정을 봅니다. 갤럭시워치 회전 베젤로도 넘길 수 있습니다.
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('w');
+const ctx = cv.getContext('2d');
+const SIZE = 300;
+const dpr = Math.max(1, window.devicePixelRatio || 1);
+cv.width = SIZE * dpr; cv.height = SIZE * dpr;
+cv.style.width = SIZE + 'px'; cv.style.height = SIZE + 'px';
+ctx.scale(dpr, dpr);
+
+function nowMin(){ const d = new Date(); return d.getHours()*60 + d.getMinutes() + d.getSeconds()/60; }
+const base = Math.round(nowMin());
+const cl = m => Math.max(0, Math.min(1439, m));
+const items = [
+  { title:'아침 집중 업무',       color:5, start:cl(base-95), end:cl(base-35) },
+  { title:'제안서 초안 작성하기', color:2, start:cl(base-12), end:cl(base+28) },
+  { title:'고객사 미팅',          color:6, start:cl(base+45), end:cl(base+95) },
+  { title:'리뷰 & 회신 정리',     color:7, start:cl(base+120), end:cl(base+175) },
+].sort((a,b)=>a.start-b.start);
+
+let selected = 0, userNav = false;
+
+function slotColor(s){ return {2:'#2563EB',3:'#DC2626',4:'#F0E442',5:'#0072B2',6:'#D55E00',7:'#CC79A7',8:'#7C3AED'}[s] || '#E7EAE3'; }
+function fmt(m){ m=((Math.round(m)%1440)+1440)%1440; return Math.floor(m/60)+':'+String(m%60).padStart(2,'0'); }
+function effEnd(it){ return it.end != null ? it.end : it.start+60; }
+function nowSec(){ const d=new Date(); return d.getHours()*3600 + d.getMinutes()*60 + d.getSeconds(); }
+
+function focusIndex(ns){
+  let active=-1, ae=1e9, up=-1, us=1e9;
+  items.forEach((it,i)=>{ const s=it.start*60, e=effEnd(it)*60;
+    if(ns>=s && ns<e){ if(e<ae){ae=e;active=i;} }
+    else if(s>ns && s<us){ us=s; up=i; } });
+  return active>=0?active : up>=0?up : items.length-1;
+}
+function remLabel(sec){ sec=Math.max(0,sec); if(sec<60) return Math.round(sec)+'초'; return Math.ceil(sec/60)+'분'; }
+
+function wrapTwo(t, font, maxW){
+  ctx.font = font;
+  if(ctx.measureText(t).width <= maxW) return [t, null];
+  let cut=t.length;
+  for(let i=1;i<=t.length;i++){ if(ctx.measureText(t.slice(0,i)).width>maxW){ cut=i-1; break; } }
+  if(cut<1) cut=1;
+  let rest=t.slice(cut);
+  while(rest.length>1 && ctx.measureText(rest+'…').width>maxW) rest=rest.slice(0,-1);
+  if(ctx.measureText(t.slice(cut)).width>maxW) rest=rest+'…';
+  return [t.slice(0,cut), rest];
+}
+
+function draw(){
+  const cx=SIZE/2, cy=SIZE/2, r=SIZE/2;
+  ctx.clearRect(0,0,SIZE,SIZE);
+  ctx.fillStyle='#0b0f0a'; ctx.fillRect(0,0,SIZE,SIZE);
+
+  if(!userNav) selected = focusIndex(nowSec());
+  const it = items[selected];
+  const ns = nowSec(), s=it.start*60, e=effEnd(it)*60, total=Math.max(1,e-s);
+  const active = ns>=s && ns<e, upcoming = ns<s;
+  const frac = active ? (e-ns)/total : upcoming ? 1 : 0;
+  const color = slotColor(it.color);
+
+  const sw = r*0.11, ringR = r - sw/2 - r*0.03;
+  ctx.lineWidth = sw; ctx.lineCap='round';
+  ctx.beginPath(); ctx.strokeStyle='#20261c'; ctx.arc(cx,cy,ringR,0,Math.PI*2); ctx.stroke();
+  if(frac>0){
+    ctx.beginPath(); ctx.strokeStyle = upcoming ? dim(color) : color;
+    ctx.arc(cx,cy,ringR, -Math.PI/2, -Math.PI/2 + Math.PI*2*frac); ctx.stroke();
+  }
+
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.fillStyle = active ? '#02955a' : '#9aa39a';
+  ctx.font = '700 '+(r*0.11)+'px sans-serif';
+  ctx.fillText(active?'지금 할 일':upcoming?'다음 일정':'지난 일정', cx, cy - r*0.46);
+
+  const [l1,l2] = wrapTwo(it.title, '700 '+(r*0.135)+'px sans-serif', r*1.30);
+  ctx.fillStyle='#fff'; ctx.font='700 '+(r*0.135)+'px sans-serif';
+  if(l2==null){ ctx.fillText(l1, cx, cy - r*0.16); }
+  else { ctx.fillText(l1, cx, cy - r*0.24); ctx.fillText(l2, cx, cy - r*0.09); }
+
+  const big = active ? remLabel(e-ns)+' 남음' : upcoming ? remLabel(s-ns)+' 후' : '종료됨';
+  ctx.fillStyle = active ? color : '#c7cdc3';
+  ctx.font='800 '+(r*0.24)+'px sans-serif';
+  ctx.fillText(big, cx, cy + r*0.16);
+
+  ctx.fillStyle='#9aa39a'; ctx.font='700 '+(r*0.115)+'px sans-serif';
+  ctx.fillText(it.end!=null ? fmt(it.start)+' – '+fmt(it.end) : fmt(it.start)+' 시작', cx, cy + r*0.37);
+
+  ctx.fillStyle='#6e766c'; ctx.font='700 '+(r*0.10)+'px sans-serif';
+  ctx.fillText((selected+1)+' / '+items.length, cx, cy + r*0.52);
+
+  ctx.font='800 '+(r*0.26)+'px sans-serif'; ctx.fillStyle='#c7cdc3';
+  if(selected>0) ctx.fillText('‹', cx - r*0.74, cy + r*0.09);
+  if(selected<items.length-1) ctx.fillText('›', cx + r*0.74, cy + r*0.09);
+}
+function dim(hex){ const n=parseInt(hex.slice(1),16); const a=0.55;
+  return 'rgb('+Math.round((n>>16&255)*a)+','+Math.round((n>>8&255)*a)+','+Math.round((n&255)*a)+')'; }
+
+document.getElementById('prev').onclick = ()=>{ if(selected>0){selected--;userNav=true;draw();} };
+document.getElementById('next').onclick = ()=>{ if(selected<items.length-1){selected++;userNav=true;draw();} };
+document.getElementById('now').onclick  = ()=>{ userNav=false; draw(); };
+cv.onclick = (ev)=>{ const x=ev.offsetX;
+  if(x < SIZE*0.28){ if(selected>0){selected--;userNav=true;} }
+  else if(x > SIZE*0.72){ if(selected<items.length-1){selected++;userNav=true;} }
+  else { userNav=false; }
+  draw();
+};
+
+draw();
+setInterval(draw, 1000);
+</script>
+</body>
+</html>

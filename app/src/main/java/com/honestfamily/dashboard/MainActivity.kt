@@ -196,6 +196,7 @@ class MainActivity : AppCompatActivity() {
             AppConfig.syncWidgetToken(appCtx)
             Widgets.refreshAll(appCtx)
             ReminderScheduler.sync(appCtx)
+            WearSync.pushToken(appCtx, AppConfig.widgetToken(appCtx))
         }.start()
     }
 
