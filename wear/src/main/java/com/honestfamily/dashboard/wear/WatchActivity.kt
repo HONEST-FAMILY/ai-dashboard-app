@@ -17,6 +17,8 @@ class WatchActivity : Activity() {
     private lateinit var view: FocusView
     private val handler = Handler(Looper.getMainLooper())
     private var loadedOnce = false
+    private var pairing = false
+    private var pairCode: String? = null
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -38,21 +40,27 @@ class WatchActivity : Activity() {
         super.onResume()
         handler.removeCallbacks(ticker)
         handler.post(ticker)
-        refresh(!loadedOnce)
+        if (pairing && pairCode != null) {
+            handler.removeCallbacks(pollRunnable)
+            handler.postDelayed(pollRunnable, 1000)
+        } else {
+            refresh(!loadedOnce)
+        }
     }
 
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(ticker)
+        handler.removeCallbacks(pollRunnable)
     }
 
     private fun refresh(showLoading: Boolean) {
-        if (showLoading) view.setStatus(FocusView.Status.LOADING)
+        if (showLoading && !pairing) view.setStatus(FocusView.Status.LOADING)
         Thread {
             readSyncedToken()
             val token = WatchStore.token(applicationContext)
             if (token == null) {
-                runOnUiThread { view.setStatus(FocusView.Status.NEED_TOKEN) }
+                startPairing()
                 return@Thread
             }
             val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
@@ -61,14 +69,70 @@ class WatchActivity : Activity() {
                 res.code == 200 && res.body != null -> {
                     val parsed = parse(res.body)
                     loadedOnce = true
+                    pairing = false
+                    pairCode = null
+                    handler.removeCallbacks(pollRunnable)
                     runOnUiThread { view.setData(parsed.first, parsed.second) }
                 }
-                res.code == 401 -> runOnUiThread { view.setStatus(FocusView.Status.NEED_TOKEN) }
+                res.code == 401 -> startPairing()
                 else -> runOnUiThread {
                     if (!loadedOnce) view.setStatus(FocusView.Status.ERROR)
                 }
             }
         }.start()
+    }
+
+    private fun startPairing() {
+        if (pairing) return
+        pairing = true
+        Thread {
+            val res = WatchApi.public("POST", "/auth/watch/code")
+            val code = if (res.code == 200 && res.body != null) {
+                try { JSONObject(res.body).optJSONObject("data")?.optString("code", "") } catch (e: Exception) { null }
+            } else null
+            if (code.isNullOrBlank()) {
+                pairing = false
+                runOnUiThread { if (!loadedOnce) view.setStatus(FocusView.Status.ERROR) }
+                return@Thread
+            }
+            pairCode = code
+            runOnUiThread {
+                view.setPairing(code)
+                handler.removeCallbacks(pollRunnable)
+                handler.postDelayed(pollRunnable, 3000)
+            }
+        }.start()
+    }
+
+    private val pollRunnable = object : Runnable {
+        override fun run() {
+            val code = pairCode ?: return
+            Thread {
+                val res = WatchApi.public("GET", "/auth/watch/claim?code=$code")
+                if (res.code == 200 && res.body != null) {
+                    try {
+                        val data = JSONObject(res.body).optJSONObject("data")
+                        val st = data?.optString("status", "") ?: ""
+                        val token = data?.optString("token", "") ?: ""
+                        if (st == "linked" && token.isNotBlank()) {
+                            WatchStore.saveToken(applicationContext, token)
+                            pairing = false
+                            pairCode = null
+                            runOnUiThread { refresh(true) }
+                            return@Thread
+                        }
+                        if (st == "expired") {
+                            pairing = false
+                            pairCode = null
+                            runOnUiThread { startPairing() }
+                            return@Thread
+                        }
+                    } catch (e: Exception) {
+                    }
+                }
+                runOnUiThread { handler.postDelayed(pollRunnable, 3000) }
+            }.start()
+        }
     }
 
     private fun readSyncedToken() {

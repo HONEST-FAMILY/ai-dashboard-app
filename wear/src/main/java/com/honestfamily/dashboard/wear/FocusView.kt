@@ -13,7 +13,7 @@ import kotlin.math.min
 
 class FocusView(context: Context) : View(context) {
 
-    enum class Status { LOADING, NEED_TOKEN, ERROR, EMPTY, OK }
+    enum class Status { LOADING, NEED_TOKEN, PAIRING, ERROR, EMPTY, OK }
 
     class Item(val title: String, val color: Int, val start: Int, val end: Int?, val project: String?)
 
@@ -24,6 +24,7 @@ class FocusView(context: Context) : View(context) {
     private var allDayTitles: List<String> = emptyList()
     private var selectedIndex: Int = -1
     private var userNavigated: Boolean = false
+    private var pairCode: String? = null
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val arc = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
@@ -43,6 +44,12 @@ class FocusView(context: Context) : View(context) {
 
     fun setStatus(s: Status) {
         status = s
+        invalidate()
+    }
+
+    fun setPairing(code: String) {
+        pairCode = code
+        status = Status.PAIRING
         invalidate()
     }
 
@@ -157,6 +164,7 @@ class FocusView(context: Context) : View(context) {
         when (status) {
             Status.LOADING -> { drawCenterMessage(canvas, cx, cy, r, "불러오는 중…", null); return }
             Status.NEED_TOKEN -> { drawCenterMessage(canvas, cx, cy, r, "폰 앱을 먼저 열어주세요", "로그인하면 워치에 연결됩니다"); return }
+            Status.PAIRING -> { drawPairing(canvas, cx, cy, r, pairCode ?: "…"); return }
             Status.ERROR -> { drawCenterMessage(canvas, cx, cy, r, "연결 안 됨", "가운데를 눌러 다시 시도"); return }
             Status.EMPTY -> {
                 val sub = if (allDayTitles.isEmpty()) "가운데를 눌러 새로고침"
@@ -261,6 +269,21 @@ class FocusView(context: Context) : View(context) {
         val g = (Color.green(color) * a).toInt()
         val b = (Color.blue(color) * a).toInt()
         return Color.rgb(r, g, b)
+    }
+
+    private fun drawPairing(canvas: Canvas, cx: Float, cy: Float, r: Float, code: String) {
+        text.color = Color.parseColor("#02955A")
+        text.textSize = r * 0.12f
+        canvas.drawText("워치 연결", cx, cy - r * 0.34f, text)
+
+        text.color = Color.WHITE
+        text.textSize = r * 0.30f
+        canvas.drawText(code, cx, cy + r * 0.06f, text)
+
+        text.color = Color.parseColor("#9AA39A")
+        text.textSize = r * 0.10f
+        canvas.drawText("폰 대시보드 →", cx, cy + r * 0.30f, text)
+        canvas.drawText("‘워치 연결’에 입력", cx, cy + r * 0.44f, text)
     }
 
     private fun drawCenterMessage(canvas: Canvas, cx: Float, cy: Float, r: Float, title: String, sub: String?) {
