@@ -106,6 +106,7 @@ class WatchActivity : Activity() {
 
     private val pollRunnable: Runnable = object : Runnable {
         override fun run() {
+            val self = this
             val code = pairCode ?: return
             Thread {
                 val res = WatchApi.public("GET", "/auth/watch/claim?code=$code")
@@ -130,7 +131,7 @@ class WatchActivity : Activity() {
                     } catch (e: Exception) {
                     }
                 }
-                runOnUiThread { handler.postDelayed(pollRunnable, 3000) }
+                runOnUiThread { handler.postDelayed(self, 3000) }
             }.start()
         }
     }
