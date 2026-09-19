@@ -561,6 +561,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
         val accentCol = ContextCompat.getColor(context, R.color.widget_accent)
         val todayTextCol = ContextCompat.getColor(context, R.color.widget_today_text)
         val borderCol = ContextCompat.getColor(context, R.color.widget_border)
+        val onTint = Color.parseColor("#111827")
 
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -687,9 +688,9 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                     val e = list[k]
                     fillPaint.color = tintColor(context, e.color)
                     canvas.drawRoundRect(RectF(x0 + pad, y, x0 + colW - pad, y + allRowH - density * 1.5f), density * 3f, density * 3f, fillPaint)
-                    fillPaint.color = barColor(context, e.color)
+                    fillPaint.color = if (e.color == 1) onTint else barColor(context, e.color)
                     canvas.drawRect(x0 + pad, y, x0 + pad + density * 2.5f, y + allRowH - density * 1.5f, fillPaint)
-                    evPaint.color = textCol
+                    evPaint.color = onTint
                     val tw = (colW - pad * 2 - density * 5f).coerceAtLeast(1f)
                     val ell = TextUtils.ellipsize(e.title, evPaint, tw, TextUtils.TruncateAt.END)
                     canvas.drawText(ell, 0, ell.length, x0 + pad + density * 4.5f, y + allRowH * 0.70f, evPaint)
@@ -727,11 +728,11 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
                 val rect = RectF(ex + density * 0.5f, ey0 + density * 0.5f, ex + cw - density * 0.5f, ey1 - density * 0.5f)
                 fillPaint.color = tintColor(context, p.ev.color)
                 canvas.drawRoundRect(rect, density * 3f, density * 3f, fillPaint)
-                fillPaint.color = barColor(context, p.ev.color)
+                fillPaint.color = if (p.ev.color == 1) onTint else barColor(context, p.ev.color)
                 canvas.drawRect(rect.left, rect.top, rect.left + density * 2.5f, rect.bottom, fillPaint)
                 val availW = (rect.width() - density * 6f).toInt()
                 if (availW > density * 8) {
-                    evPaint.color = textCol
+                    evPaint.color = onTint
                     val label = if (dayView && ncol == 1) hhmm(p.ev.start!!) + "  " + p.ev.title else p.ev.title
                     val maxLines = ((rect.height() - density * 2f) / (evPaint.textSize * 1.25f)).toInt().coerceIn(1, if (dayView) 4 else 3)
                     val layout = StaticLayout.Builder
@@ -815,7 +816,7 @@ class ScheduleWidgetProvider : AppWidgetProvider() {
     }
 
     private fun tintColor(context: Context, slot: Int): Int {
-        val c = barColor(context, slot)
+        val c = if (slot == 1) Color.parseColor("#111827") else barColor(context, slot)
         val a = 0.16f
         val r = (Color.red(c) * a + 255 * (1 - a)).toInt().coerceIn(0, 255)
         val g = (Color.green(c) * a + 255 * (1 - a)).toInt().coerceIn(0, 255)
