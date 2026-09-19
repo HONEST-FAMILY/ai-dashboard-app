@@ -104,7 +104,7 @@ class WatchActivity : Activity() {
         }.start()
     }
 
-    private val pollRunnable = object : Runnable {
+    private val pollRunnable: Runnable = object : Runnable {
         override fun run() {
             val code = pairCode ?: return
             Thread {
