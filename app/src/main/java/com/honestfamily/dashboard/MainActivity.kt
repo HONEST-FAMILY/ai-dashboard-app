@@ -14,6 +14,7 @@ import android.os.Environment
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -36,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var swipe: SwipeRefreshLayout
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private var touching = false
+    private var swipeLocked = false
 
     private val fileChooser: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -57,18 +59,19 @@ class MainActivity : AppCompatActivity() {
 
         swipe.setColorSchemeColors(ContextCompat.getColor(this, R.color.widget_accent))
         swipe.setOnRefreshListener { webView.reload() }
+        webView.addJavascriptInterface(PullRefreshBridge(), "AndroidApp")
         webView.setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     touching = true
-                    swipe.isEnabled = webView.scrollY == 0
+                    applySwipeEnabled()
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> touching = false
             }
             false
         }
-        webView.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            if (!touching) swipe.isEnabled = scrollY == 0
+        webView.setOnScrollChangeListener { _, _, _, _, _ ->
+            if (!touching) applySwipeEnabled()
         }
 
         CookieManager.getInstance().setAcceptCookie(true)
@@ -107,6 +110,7 @@ class MainActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 progress.visibility = View.GONE
                 swipe.isRefreshing = false
+                view?.evaluateJavascript(PULL_TO_REFRESH_GUARD_JS, null)
                 CookieManager.getInstance().flush()
                 AppConfig.syncTokenFromCookies(this@MainActivity)
                 syncWidgetTokenThenRefresh()
@@ -208,5 +212,46 @@ class MainActivity : AppCompatActivity() {
     private fun startUrl(intent: Intent?): String {
         val url = intent?.getStringExtra(AppConfig.EXTRA_OPEN_URL)
         return if (!url.isNullOrBlank()) url else AppConfig.BASE_WEB
+    }
+
+    private fun applySwipeEnabled() {
+        swipe.isEnabled = !swipeLocked && webView.scrollY == 0
+    }
+
+    private inner class PullRefreshBridge {
+        @JavascriptInterface
+        fun setPullToRefreshEnabled(enabled: Boolean) {
+            runOnUiThread {
+                swipeLocked = !enabled
+                applySwipeEnabled()
+            }
+        }
+    }
+
+    companion object {
+        private const val PULL_TO_REFRESH_GUARD_JS = """
+(function(){
+  if (window.__hfPullGuard) return;
+  window.__hfPullGuard = true;
+  var last = null;
+  function locked(el){
+    while (el && el.nodeType === 1 && el !== document.body && el !== document.documentElement){
+      var s = window.getComputedStyle(el);
+      var oy = s.overflowY;
+      if (((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1) || s.position === 'fixed') return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+  function send(enabled){
+    if (last === enabled) return;
+    last = enabled;
+    try { if (window.AndroidApp) window.AndroidApp.setPullToRefreshEnabled(enabled); } catch (e) {}
+  }
+  document.addEventListener('touchstart', function(e){ send(!locked(e.target)); }, true);
+  document.addEventListener('touchend', function(){ send(true); }, true);
+  document.addEventListener('touchcancel', function(){ send(true); }, true);
+})();
+"""
     }
 }
