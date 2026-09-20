@@ -5,7 +5,8 @@
     <color name="widget_text">#0F150E</color>
     <color name="widget_text_muted">#8B938A</color>
     <color name="widget_accent">#02955A</color>
-    <color name="widget_rose">#B3365C</color>
+    <color name="widget_rose">#DC2626</color>
+    <color name="widget_sat">#2563EB</color>
     <color name="widget_border">#EAECE6</color>
     <color name="widget_today_text">#FFFFFF</color>
     <color name="widget_out">#C2C7BD</color>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tt_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:id="@+id/tt_nowline"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_marginStart="40dp"
+        android:background="@color/widget_rose"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="34dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp">
+
+        <TextView
+            android:id="@+id/tt_hour"
+            android:layout_width="44dp"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:paddingEnd="8dp"
+            android:maxLines="1"
+            android:textColor="@color/widget_text_muted"
+            android:textSize="11sp" />
+
+        <FrameLayout
+            android:id="@+id/tt_bar"
+            android:layout_width="4dp"
+            android:layout_height="30dp"
+            android:layout_marginEnd="9dp"
+            android:background="@color/widget_accent"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tt_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:lineSpacingMultiplier="1.05"
+                android:textColor="@color/widget_text"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tt_time"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:textColor="@color/widget_text_muted"
+                android:textSize="11sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

@@ -172,42 +172,12 @@
             android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tt_day"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:background="@drawable/mode_pill"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:text="@string/view_day"
-            android:textColor="@color/widget_today_text"
-            android:textSize="11.5sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tt_week"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="3dp"
-            android:background="@drawable/today_pill"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="3dp"
-            android:paddingBottom="3dp"
-            android:text="@string/view_week"
-            android:textColor="@color/widget_accent"
-            android:textSize="11.5sp"
-            android:textStyle="bold" />
-
-        <TextView
             android:id="@+id/week_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center_vertical"
-            android:paddingStart="6dp"
+            android:paddingStart="8dp"
             android:maxLines="1"
             android:ellipsize="end"
             android:textColor="@color/widget_text"
@@ -637,58 +607,12 @@
         android:layout_weight="1"
         android:visibility="gone">
 
-        <ImageView
-            android:id="@+id/week_canvas"
+        <ListView
+            android:id="@+id/week_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="fitXY"
-            android:contentDescription="@string/schedule_widget_title" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:weightSum="7.85">
-            <FrameLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="0.85" />
-            <FrameLayout
-                android:id="@+id/wcol_0"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-            <FrameLayout
-                android:id="@+id/wcol_1"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-            <FrameLayout
-                android:id="@+id/wcol_2"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-            <FrameLayout
-                android:id="@+id/wcol_3"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-            <FrameLayout
-                android:id="@+id/wcol_4"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-            <FrameLayout
-                android:id="@+id/wcol_5"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-            <FrameLayout
-                android:id="@+id/wcol_6"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1" />
-        </LinearLayout>
+            android:divider="@color/widget_border"
+            android:dividerHeight="0.5dp" />
 
         <TextView
             android:id="@+id/week_empty"
