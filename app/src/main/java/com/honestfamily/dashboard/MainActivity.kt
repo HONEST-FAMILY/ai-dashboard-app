@@ -43,7 +43,16 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val cb = filePathCallback
             filePathCallback = null
-            cb?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data))
+            val data = result.data
+            val uris: Array<Uri>? = if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+                val clip = data.clipData
+                when {
+                    clip != null && clip.itemCount > 0 -> Array(clip.itemCount) { clip.getItemAt(it).uri }
+                    data.data != null -> arrayOf(data.data!!)
+                    else -> null
+                }
+            } else null
+            cb?.onReceiveValue(uris)
         }
 
     private val notifPermLauncher: ActivityResultLauncher<String> =
