@@ -134,6 +134,9 @@ class MainActivity : AppCompatActivity() {
                     filePathCallback = null
                     return false
                 }
+                if (params?.mode == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
                 return try {
                     fileChooser.launch(intent)
                     true
