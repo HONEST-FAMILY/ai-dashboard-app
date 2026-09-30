@@ -47,9 +47,42 @@ private class FavoritesFactory(private val context: Context) : RemoteViewsServic
     override fun hasStableIds(): Boolean = false
     override fun getLoadingView(): RemoteViews? = null
 
+    private fun iconFor(path: String): Int = when (path.trimEnd('/')) {
+        "/my/remaining" -> R.drawable.ic_fav_remaining
+        "/projects" -> R.drawable.ic_fav_projects
+        "/journals" -> R.drawable.ic_fav_journals
+        "/insights" -> R.drawable.ic_fav_insights
+        "/candidates" -> R.drawable.ic_fav_candidates
+        "/mindmap" -> R.drawable.ic_fav_mindmap
+        "/marketing/stats" -> R.drawable.ic_fav_marketing_stats
+        "/sns-posts" -> R.drawable.ic_fav_sns_posts
+        "/schedule" -> R.drawable.ic_fav_calendar
+        "/travel" -> R.drawable.ic_fav_travel
+        "/reminders" -> R.drawable.ic_fav_reminders
+        "/library" -> R.drawable.ic_fav_library
+        "/design-references" -> R.drawable.ic_fav_design_references
+        "/routines" -> R.drawable.ic_fav_routines
+        "/inspirations" -> R.drawable.ic_fav_inspirations
+        "/memos" -> R.drawable.ic_fav_memos
+        "/my/leaves" -> R.drawable.ic_fav_calendar_check
+        "/leaves/calendar" -> R.drawable.ic_fav_calendar
+        "/admin/leave-requests" -> R.drawable.ic_fav_calendar_check
+        "/admin/leave-balances" -> R.drawable.ic_fav_calendar_check
+        "/admin/holidays" -> R.drawable.ic_fav_calendar
+        "/my/profile" -> R.drawable.ic_fav_profile
+        "/admin/budget" -> R.drawable.ic_fav_budget
+        "/admin/users" -> R.drawable.ic_fav_users
+        "/admin/agents" -> R.drawable.ic_fav_agents
+        "/admin/prompt-templates" -> R.drawable.ic_fav_templates
+        "/admin/announcements" -> R.drawable.ic_fav_announcements
+        "/admin/usage" -> R.drawable.ic_fav_usage
+        else -> R.drawable.ic_fav_generic
+    }
+
     override fun getViewAt(position: Int): RemoteViews {
         val item = items[position]
         val v = RemoteViews(context.packageName, R.layout.widget_favorites_item)
+        v.setImageViewResource(R.id.fav_icon, iconFor(item.path))
         v.setTextViewText(R.id.fav_label, item.label)
         val target = if (item.path.startsWith("http")) item.path else AppConfig.BASE_WEB + item.path
         v.setOnClickFillInIntent(
