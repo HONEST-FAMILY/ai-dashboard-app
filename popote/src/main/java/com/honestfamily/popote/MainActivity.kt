@@ -1,0 +1,225 @@
+package com.honestfamily.popote
+
+import android.annotation.SuppressLint
+import android.app.DownloadManager
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Bundle
+import android.os.Environment
+import android.view.MotionEvent
+import android.view.View
+import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
+import android.webkit.URLUtil
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.ProgressBar
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+    private lateinit var progress: ProgressBar
+    private lateinit var swipe: SwipeRefreshLayout
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var touching = false
+    private var swipeLocked = false
+
+    private val fileChooser: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val cb = filePathCallback
+            filePathCallback = null
+            val data = result.data
+            val uris: Array<Uri>? = if (result.resultCode == android.app.Activity.RESULT_OK && data != null) {
+                val clip = data.clipData
+                when {
+                    clip != null && clip.itemCount > 0 -> Array(clip.itemCount) { clip.getItemAt(it).uri }
+                    data.data != null -> arrayOf(data.data!!)
+                    else -> null
+                }
+            } else null
+            cb?.onReceiveValue(uris)
+        }
+
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        webView = findViewById(R.id.webview)
+        progress = findViewById(R.id.progress)
+        swipe = findViewById(R.id.swipe)
+
+        swipe.setColorSchemeColors(ContextCompat.getColor(this, R.color.widget_accent))
+        swipe.setOnRefreshListener { webView.reload() }
+        webView.addJavascriptInterface(PullRefreshBridge(), "AndroidApp")
+        webView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    touching = true
+                    applySwipeEnabled()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> touching = false
+            }
+            false
+        }
+        webView.setOnScrollChangeListener { _, _, _, _, _ ->
+            if (!touching) applySwipeEnabled()
+        }
+
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            javaScriptCanOpenWindowsAutomatically = true
+            cacheMode = WebSettings.LOAD_DEFAULT
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                val url = request.url
+                val scheme = url.scheme ?: ""
+                if (scheme == "http" || scheme == "https") {
+                    val host = url.host ?: ""
+                    if (scheme == "https" && host == "popote.honest-family.com") return false
+                }
+                return try {
+                    startActivity(Intent(Intent.ACTION_VIEW, url))
+                    true
+                } catch (e: Exception) {
+                    true
+                }
+            }
+
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                progress.visibility = View.VISIBLE
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                progress.visibility = View.GONE
+                swipe.isRefreshing = false
+                view?.evaluateJavascript(PULL_TO_REFRESH_GUARD_JS, null)
+                CookieManager.getInstance().flush()
+            }
+        }
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                progress.progress = newProgress
+            }
+
+            override fun onShowFileChooser(
+                webView: WebView?,
+                callback: ValueCallback<Array<Uri>>?,
+                params: FileChooserParams?
+            ): Boolean {
+                filePathCallback?.onReceiveValue(null)
+                filePathCallback = callback
+                val intent = params?.createIntent()
+                if (intent == null) {
+                    filePathCallback = null
+                    return false
+                }
+                if (params?.mode == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
+                return try {
+                    fileChooser.launch(intent)
+                    true
+                } catch (e: Exception) {
+                    filePathCallback = null
+                    false
+                }
+            }
+        }
+
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
+            try {
+                val request = DownloadManager.Request(Uri.parse(url)).apply {
+                    setMimeType(mimeType)
+                    CookieManager.getInstance().getCookie(url)?.let { addRequestHeader("cookie", it) }
+                    addRequestHeader("User-Agent", userAgent)
+                    setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    val name = URLUtil.guessFileName(url, contentDisposition, mimeType)
+                    setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
+                }
+                (getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
+            } catch (e: Exception) {
+            }
+        }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) webView.goBack() else finish()
+            }
+        })
+
+        if (savedInstanceState != null) {
+            webView.restoreState(savedInstanceState)
+        } else {
+            webView.loadUrl(BASE_WEB)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        webView.saveState(outState)
+    }
+
+    private fun applySwipeEnabled() {
+        swipe.isEnabled = !swipeLocked && webView.scrollY == 0
+    }
+
+    private inner class PullRefreshBridge {
+        @JavascriptInterface
+        fun setPullToRefreshEnabled(enabled: Boolean) {
+            runOnUiThread {
+                swipeLocked = !enabled
+                applySwipeEnabled()
+            }
+        }
+    }
+
+    companion object {
+        private const val BASE_WEB = "https://popote.honest-family.com"
+        private const val PULL_TO_REFRESH_GUARD_JS = """
+(function(){
+  if (window.__hfPullGuard) return;
+  window.__hfPullGuard = true;
+  var last = null;
+  function locked(el){
+    while (el && el.nodeType === 1 && el !== document.body && el !== document.documentElement){
+      var s = window.getComputedStyle(el);
+      var oy = s.overflowY;
+      if (((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1) || s.position === 'fixed') return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+  function send(enabled){
+    if (last === enabled) return;
+    last = enabled;
+    try { if (window.AndroidApp) window.AndroidApp.setPullToRefreshEnabled(enabled); } catch (e) {}
+  }
+  document.addEventListener('touchstart', function(e){ send(!locked(e.target)); }, true);
+  document.addEventListener('touchend', function(){ send(true); }, true);
+  document.addEventListener('touchcancel', function(){ send(true); }, true);
+})();
+"""
+    }
+}

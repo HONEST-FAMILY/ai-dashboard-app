@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "AI Dashboard"
 include ':app'
 include ':wear'
+include ':popote'

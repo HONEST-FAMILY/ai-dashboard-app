@@ -14,3 +14,11 @@
 
 ## 로컬 빌드
 Android Studio(또는 JDK 17 + Android SDK 34)로 이 폴더를 열고 `assembleDebug` 를 실행합니다.
+
+## 뽀뽀뜨 직원용 앱
+
+`popote` 모듈은 `https://popote.honest-family.com`을 여는 별도 앱이다. 앱 이름은 뽀뽀뜨 대시보드이며 기존 직원 로그인과 첨부·다운로드를 사용한다. 어니스트 앱의 위젯·워치·알림 API와 토큰 저장 기능은 포함하지 않는다.
+
+`gradle :popote:assembleRelease :popote:lintRelease`로 검증한다. main 푸시 시 뽀뽀뜨 전용 자동 빌드가 기존 서명 설정을 사용하고 `popote-latest` 릴리스에 `popote-dashboard.apk`를 공개한다. 기존 어니스트 앱과 설치 식별자가 달라 함께 설치할 수 있다. 설치 안내는 `https://popote.honest-family.com/install/mobile`이다.
+
+되돌릴 때는 뽀뽀뜨 모듈과 자동 빌드 추가 변경만 `git revert`하여 main에 푸시한다. 기존 어니스트 앱과 최신 릴리스는 유지한다. 운영 계정과 업무 DB는 변경하지 않는다.
