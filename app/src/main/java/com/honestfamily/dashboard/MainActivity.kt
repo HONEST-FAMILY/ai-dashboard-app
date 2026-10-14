@@ -238,6 +238,22 @@ class MainActivity : AppCompatActivity() {
                 applySwipeEnabled()
             }
         }
+
+        @JavascriptInterface
+        fun share(url: String?, title: String?) {
+            val link = url ?: return
+            runOnUiThread {
+                try {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, link)
+                        if (!title.isNullOrBlank()) putExtra(Intent.EXTRA_SUBJECT, title)
+                    }
+                    startActivity(Intent.createChooser(send, "공유"))
+                } catch (e: Exception) {
+                }
+            }
+        }
     }
 
     companion object {
