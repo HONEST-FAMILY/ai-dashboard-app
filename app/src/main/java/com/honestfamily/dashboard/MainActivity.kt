@@ -99,11 +99,7 @@ class MainActivity : AppCompatActivity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
-                val scheme = url.scheme ?: ""
-                if (scheme == "http" || scheme == "https") {
-                    val host = url.host ?: ""
-                    if (host.endsWith("honest-family.com")) return false
-                }
+                if (isDashboardScreen(url)) return false
                 return try {
                     startActivity(Intent(Intent.ACTION_VIEW, url))
                     true
@@ -230,6 +226,13 @@ class MainActivity : AppCompatActivity() {
         swipe.isEnabled = !swipeLocked && webView.scrollY == 0
     }
 
+    private fun isDashboardScreen(url: Uri): Boolean {
+        val scheme = url.scheme ?: ""
+        if (scheme != "http" && scheme != "https") return false
+        if (url.host != DASHBOARD_HOST) return false
+        return !STATIC_FILE_PATH.containsMatchIn(url.path ?: "")
+    }
+
     private inner class PullRefreshBridge {
         @JavascriptInterface
         fun setPullToRefreshEnabled(enabled: Boolean) {
@@ -257,6 +260,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private val DASHBOARD_HOST = Uri.parse(AppConfig.BASE_WEB).host
+        private val STATIC_FILE_PATH = Regex("\\.[a-z0-9]+$", RegexOption.IGNORE_CASE)
+
         private const val PULL_TO_REFRESH_GUARD_JS = """
 (function(){
   if (window.__hfPullGuard) return;
