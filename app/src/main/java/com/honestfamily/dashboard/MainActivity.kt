@@ -186,6 +186,8 @@ class MainActivity : AppCompatActivity() {
         ) {
             notifPermLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+
+        ConversationCollector.ensureScheduled(applicationContext)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -200,6 +202,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         AppConfig.syncTokenFromCookies(this)
+        ConversationCollector.syncOnResume(applicationContext)
     }
 
     private fun syncWidgetTokenThenRefresh() {
@@ -256,6 +259,23 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                 }
             }
+        }
+
+        @JavascriptInterface
+        fun openCollectorSettings() {
+            runOnUiThread {
+                try {
+                    startActivity(Intent(this@MainActivity, ConversationCollectorSettingsActivity::class.java))
+                } catch (e: Exception) {
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun collectorStatus(): String = try {
+            ConversationCollector.bridgeStatus(applicationContext).toString()
+        } catch (e: Exception) {
+            "{}"
         }
     }
 

@@ -4,4 +4,21 @@
         <item name="android:windowBackground">@color/window_bg</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <style name="Theme.HFDashboard.Collector" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/widget_accent</item>
+        <item name="colorPrimaryDark">@color/collector_bg</item>
+        <item name="colorAccent">@color/widget_accent</item>
+        <item name="android:windowBackground">@color/collector_bg</item>
+        <item name="android:statusBarColor">@color/collector_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.HFDashboard.ShareDialog" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorPrimary">@color/widget_accent</item>
+        <item name="colorAccent">@color/widget_accent</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowCloseOnTouchOutside">false</item>
+    </style>
 </resources>

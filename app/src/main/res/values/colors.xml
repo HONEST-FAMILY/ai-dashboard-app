@@ -11,4 +11,9 @@
     <color name="widget_today_text">#FFFFFF</color>
     <color name="widget_out">#C2C7BD</color>
     <color name="ic_launcher_bg">#3182F6</color>
+    <color name="collector_bg">#FFFFFF</color>
+    <color name="collector_text">#0F150E</color>
+    <color name="collector_text_muted">#5F6B5E</color>
+    <color name="collector_box">#F4F7F2</color>
+    <color name="collector_border">#E2E6DE</color>
 </resources>
